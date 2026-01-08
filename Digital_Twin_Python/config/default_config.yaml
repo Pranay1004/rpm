@@ -1,0 +1,233 @@
+# RPM Digital Twin - Configuration File
+# Random Positioning Machine Control & Analysis System
+# Version 1.0.0
+
+# =============================================================================
+# SYSTEM CONFIGURATION
+# =============================================================================
+system:
+  name: "RPM Digital Twin"
+  version: "1.0.0"
+  organization: "Space Research Laboratory"
+  log_level: "INFO"  # DEBUG, INFO, WARNING, ERROR, CRITICAL
+  data_directory: "./data"
+  export_directory: "./exports"
+  
+# =============================================================================
+# HARDWARE CONFIGURATION
+# =============================================================================
+hardware:
+  # Arduino Configuration
+  arduino:
+    enabled: true
+    port: "auto"  # "auto" for auto-detect, or specific port like "COM3" or "/dev/ttyUSB0"
+    baud_rate: 115200
+    timeout: 1.0
+    reconnect_attempts: 5
+    reconnect_delay: 2.0
+    
+  # Raspberry Pi Configuration  
+  raspberry_pi:
+    enabled: true
+    host: "192.168.1.100"
+    port: 5000
+    protocol: "tcp"  # tcp, udp, mqtt
+    
+  # IMU/Accelerometer Sensors
+  sensors:
+    imu:
+      enabled: true
+      sample_rate: 100  # Hz
+      filter_cutoff: 10  # Hz, low-pass filter
+    accelerometer:
+      enabled: true
+      range: 16  # g, measurement range
+      resolution: 16  # bits
+      
+# =============================================================================
+# MOTOR CONFIGURATION (NEMA 23 & NEMA 34)
+# =============================================================================
+motors:
+  # Outer Frame Motor (NEMA 34)
+  outer_frame:
+    name: "Outer Frame Motor"
+    type: "NEMA34"
+    steps_per_revolution: 200
+    microstepping: 16
+    max_rpm: 10.0
+    max_acceleration: 10.0  # rad/s²
+    gear_ratio: 1.0
+    direction_inverted: false
+    
+  # Inner Frame Motor (NEMA 23)
+  inner_frame:
+    name: "Inner Frame Motor"
+    type: "NEMA23"
+    steps_per_revolution: 200
+    microstepping: 16
+    max_rpm: 10.0
+    max_acceleration: 10.0  # rad/s²
+    gear_ratio: 1.0
+    direction_inverted: false
+
+# =============================================================================
+# RPM PHYSICS PARAMETERS
+# =============================================================================
+physics:
+  # Physical Constants
+  gravity_magnitude: 9.81  # m/s²
+  gravity_direction: [0, -1, 0]  # Y-axis pointing down
+  
+  # Payload Configuration
+  payload:
+    mass: 1.0  # kg
+    dimensions: [0.18, 0.18, 0.18]  # m (180mm x 180mm x 180mm)
+    center_offset: [0, 0, 0]  # m, offset from rotation center
+    
+  # Inertial Properties (from CAD analysis)
+  inertia:
+    outer_frame_izz: 0.614  # kg·m²
+    inner_frame_iyy: 0.172  # kg·m²
+    
+  # Rotation Axes Definition
+  axes:
+    outer_frame: "Z"  # Yaw rotation
+    inner_frame: "Y"  # Pitch rotation
+
+# =============================================================================
+# SIMULATION PARAMETERS
+# =============================================================================
+simulation:
+  # Time Parameters
+  duration: 600  # seconds (10 minutes default)
+  time_step: 0.01  # seconds
+  
+  # Random Positioning Algorithm
+  algorithm:
+    type: "random"  # random, constant, custom
+    velocity_change_probability: 0.001
+    
+  # Microgravity Analysis
+  analysis:
+    averaging_window: 60  # seconds
+    rms_calculation: true
+    peak_detection: true
+    
+# =============================================================================
+# DATA ACQUISITION SETTINGS
+# =============================================================================
+data_acquisition:
+  # Sampling Configuration
+  sample_rate: 100  # Hz
+  buffer_size: 10000  # samples
+  
+  # Data Channels
+  channels:
+    - name: "accel_x"
+      unit: "m/s²"
+      range: [-200, 200]
+    - name: "accel_y"
+      unit: "m/s²"
+      range: [-200, 200]
+    - name: "accel_z"
+      unit: "m/s²"
+      range: [-200, 200]
+    - name: "gyro_x"
+      unit: "rad/s"
+      range: [-20, 20]
+    - name: "gyro_y"
+      unit: "rad/s"
+      range: [-20, 20]
+    - name: "gyro_z"
+      unit: "rad/s"
+      range: [-20, 20]
+    - name: "theta_outer"
+      unit: "rad"
+      range: [-6.28, 6.28]
+    - name: "theta_inner"
+      unit: "rad"
+      range: [-6.28, 6.28]
+      
+  # Filtering
+  filtering:
+    enabled: true
+    type: "butterworth"
+    order: 4
+    cutoff_frequency: 10  # Hz
+
+# =============================================================================
+# VISUALIZATION SETTINGS
+# =============================================================================
+visualization:
+  # Plot Update Rate
+  update_rate: 30  # Hz (frames per second)
+  
+  # Plot History
+  history_duration: 60  # seconds of data to display
+  
+  # 3D Visualization
+  trajectory:
+    enabled: true
+    max_points: 10000
+    line_width: 1.5
+    colormap: "viridis"
+    
+  # Color Scheme
+  colors:
+    background: "#1E1E2E"
+    foreground: "#CDD6F4"
+    accent: "#89B4FA"
+    success: "#A6E3A1"
+    warning: "#F9E2AF"
+    error: "#F38BA8"
+    
+# =============================================================================
+# EXPORT SETTINGS
+# =============================================================================
+export:
+  # File Formats
+  formats:
+    - "csv"
+    - "hdf5"
+    - "vtk"
+    - "xlsx"
+    
+  # ParaView Integration
+  paraview:
+    enabled: true
+    executable: "paraview"  # Path to ParaView executable
+    auto_launch: false
+    script_directory: "./paraview_scripts"
+    
+  # Report Generation
+  reports:
+    enabled: true
+    format: "pdf"
+    include_plots: true
+    include_statistics: true
+
+# =============================================================================
+# SAFETY LIMITS
+# =============================================================================
+safety:
+  # Emergency Stop
+  emergency_stop:
+    enabled: true
+    deceleration: 50  # rad/s², emergency deceleration rate
+    
+  # Operational Limits
+  limits:
+    max_angular_velocity: 1.05  # rad/s (≈10 RPM)
+    max_angular_acceleration: 10.0  # rad/s²
+    max_centripetal_acceleration: 0.1  # g
+    
+  # Watchdog Timer
+  watchdog:
+    enabled: true
+    timeout: 5.0  # seconds
+    
+  # Interlock Conditions
+  interlocks:
+    door_sensor: true
+    vibration_limit: 5.0  # g
+    temperature_limit: 60  # °C

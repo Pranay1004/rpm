@@ -1,0 +1,28 @@
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+._*
+
+# Office temp
+~$*
+
+# C++ build outputs
+Digital_Twin_C++/build/
+Digital_Twin_C++/**/CMakeFiles/
+Digital_Twin_C++/**/CMakeCache.txt
+Digital_Twin_C++/**/cmake_install.cmake
+Digital_Twin_C++/**/Makefile
+
+# Rust build outputs
+Digital_Twin_Rust/target/
+
+# Python env/cache (kept only if you retain the legacy Python folder)
+**/__pycache__/
+**/.pytest_cache/
+*.pyc
+.venv/
+venv/
+
+# Logs
+*.log
