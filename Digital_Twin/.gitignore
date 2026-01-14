@@ -1,0 +1,66 @@
+# Dependencies
+node_modules/
+dist/
+build/
+build-debug/
+build-release/
+__pycache__/
+*.egg-info/
+.Python
+venv/
+env/
+ENV/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+*.sublime-workspace
+
+# Environment
+.env
+.env.local
+.env.*.local
+
+# Build outputs
+*.o
+*.a
+*.so
+*.dylib
+*.deb
+*.rpm
+*.exe
+*.app/
+
+# Test coverage
+coverage/
+.nyc_output/
+htmlcov/
+
+# Database
+*.db
+*.sqlite
+*.sqlite3
+
+# OS
+Thumbs.db
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Temporary files
+*.tmp
+*.temp
+.cache/
+
+# Package manager lock files (for libraries)
+# Uncomment if you want to commit lock files
+# package-lock.json
+# yarn.lock
+
+# Distribution packages
+dist-electron/
