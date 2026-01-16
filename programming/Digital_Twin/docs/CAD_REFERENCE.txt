@@ -157,7 +157,7 @@ A-Frame:
                               COLOR SCHEME
 ================================================================================
 
-Current Implementation (SpaceX/Tesla dark theme):
+Current Implementation:
   - Inner Frame: Purple (#bf5af2) 
   - Outer Frame: Cyan (#00e5ff)
   - Payload: Light gray (#eeeeee), semi-transparent

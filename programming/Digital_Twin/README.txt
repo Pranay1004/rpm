@@ -1,429 +1,358 @@
 ================================================================================
-          RPM DIGITAL TWIN - MICROGRAVITY SIMULATION PLATFORM
+                    RPM DIGITAL TWIN - QUICK START GUIDE
 ================================================================================
 
-Version: 3.1.0
-Last Updated: 15 January 2026
-Platform: Python 3.10+ / Web Browser
+Project: Random Positioning Machine (RPM) Digital Twin Simulator
+Version: 3.1.1
+Institution: Department of Aerospace Engineering, IIST
+License: MIT
+Date: January 2026
 
 ================================================================================
-                              TABLE OF CONTENTS
+                                WHAT IS SAMPLE?
 ================================================================================
 
-1. OVERVIEW
-2. PHYSICS & THEORY
-3. ARCHITECTURE
-4. INSTALLATION
-5. USAGE
-6. VALIDATION & VERIFICATION
-7. API REFERENCE
+SAMPLE - A Critical Metric for Physics Convergence
 
-================================================================================
-                              1. OVERVIEW
-================================================================================
+In the RPM simulator, "SAMPLE" refers to the number of data points collected
+during the rotational motion calculations. This is fundamental to understanding
+the accuracy and convergence of the simulated microgravity metrics.
 
-WHAT IS AN RPM?
----------------
-A Random Positioning Machine (RPM) is a laboratory device used to simulate
-microgravity conditions on Earth. It consists of two independently rotating
-frames that continuously change the orientation of a sample relative to
-Earth's gravity vector.
+What the SAMPLE metric represents:
+  1. COUNT of position/velocity measurements collected during rotation
+  2. WINDOWS of time-averaged gravity calculations performed
+  3. CONVERGENCE indicator - higher samples = more accurate measurements
+  4. QUALITY metric - shows when physics has "settled" to stable values
 
-KEY FEATURES
-------------
-* Paper-accurate physics - Implements Eq. 2 rotation matrices
-* Real-time 3D visualization - Three.js rendering at 50Hz
-* Time-averaged microgravity (taSMG) - Correct ||<g>|| calculation
-* SpaceX/Tesla-style UI - Dark theme professional dashboard
-* Hardware-ready architecture - Command queue for NEMA motor control
-* WebSocket streaming - Low-latency data broadcast at 20Hz
+Why SAMPLE matters:
+  • Low samples: Physics values still changing, measurement unstable
+  • High samples: Physics converged to stable state, measurement reliable
+  • 100+ samples: Generally indicates converged results
+  • 300+ samples: Very high confidence in measured metrics
 
-================================================================================
-                           2. PHYSICS & THEORY
-================================================================================
+Real-world analogy:
+  When you take a photo in dim light:
+    • 1 photo: Blurry, noisy
+    • 10 photos: Getting clearer
+    • 100 photos: Clear, stable image
+  SAMPLE is like averaging 100 photos to get a clear measurement.
 
-REFERENCE FRAMES
-----------------
-+-------------+---------------------------+---------------------+
-| Frame       | Description               | Gravity Direction   |
-+-------------+---------------------------+---------------------+
-| Lab Frame   | Fixed to Earth            | Always (0, -1, 0)   |
-| Sample Frame| Attached to payload       | Changes continuously|
-+-------------+---------------------------+---------------------+
+Dashboard location:
+  The "Samples" counter appears in the web UI alongside these metrics:
+    • taSMG (time-averaged gravity magnitude) - depends on samples
+    • Time-averaged X, Y, Z accelerations
+    • Rotation rate feedback
+  
+How it's calculated:
+  For each 50Hz physics update:
+    1. Calculate current rotation matrix
+    2. Compute gravity components in rotating frame
+    3. Average these values over a time window
+    4. Increment SAMPLE counter
+    5. When SAMPLE is high enough, metrics are stable
 
-"Gravity Vector (Sample Frame)" means: The direction gravity appears to come
-from, as seen by the sample/payload inside the RPM. Because the RPM rotates,
-this direction constantly changes - which is how we simulate microgravity!
+What to do with SAMPLE information:
+  • Running simulations: Watch SAMPLE increase
+  • SAMPLE < 50: Physics still converging, results preliminary
+  • SAMPLE 50-200: Good stability, typical for analysis
+  • SAMPLE > 200: Excellent stability, use for publication
+  • Reset: SAMPLE counter resets when motor speeds change
 
-
-COORDINATE SYSTEM
------------------
-        Y (up)
-        |
-        |
-        |
-        +-------- X (right)
-       /
-      /
-     Z (toward viewer)
-
-
-ROTATION MATRICES (Equation 2)
-------------------------------
-The gravity vector transformation from lab frame to sample frame:
-
-    g_sample = R_Z(phi) * R_Y(psi) * g_lab
-
-Where:
-  - phi (φ) = Inner frame angle (rotates around Z-axis)
-  - psi (ψ) = Outer frame angle (rotates around Y-axis)
-  - g_lab = (0, -1, 0) = Earth's gravity in lab frame
-
-R_Y(psi) - Outer Frame Rotation Matrix:
-    [ cos(psi)   0   sin(psi) ]
-    [    0       1      0     ]
-    [-sin(psi)   0   cos(psi) ]
-
-R_Z(phi) - Inner Frame Rotation Matrix:
-    [ cos(phi)  -sin(phi)  0 ]
-    [ sin(phi)   cos(phi)  0 ]
-    [    0          0      1 ]
-
-
-GRAVITY COMPONENTS (Gx, Gy, Gz)
--------------------------------
-Applying the rotation matrices to g_lab = (0, -1, 0):
-
-    Gx = -sin(phi) * cos(psi)
-    Gy = -cos(phi)
-    Gz = sin(phi) * sin(psi)
-
-These values oscillate between -1 and +1 as the frames rotate.
-
-NOTE: The magnitude ||g|| = sqrt(Gx^2 + Gy^2 + Gz^2) = 1 ALWAYS
-      (gravity magnitude is constant, only direction changes)
-
-
-AVERAGE GRAVITY (<Gx>, <Gy>, <Gz>)
-----------------------------------
-Time-averaged gravity components over the simulation:
-
-    <Gx> = (1/N) * SUM(Gx_i)   for i = 1 to N
-    <Gy> = (1/N) * SUM(Gy_i)   for i = 1 to N
-    <Gz> = (1/N) * SUM(Gz_i)   for i = 1 to N
-
-For perfect microgravity, all three averages should approach ZERO.
-
-
-G* (taSMG) - THE KEY METRIC
----------------------------
-G* is the time-averaged Simulated Microgravity magnitude:
-
-    G* = ||<g>|| = sqrt(<Gx>^2 + <Gy>^2 + <Gz>^2)
-
-CRITICAL DISTINCTION:
-    WRONG:   <||g||>  = average of magnitudes = always ~1
-    CORRECT: ||<g>||  = magnitude of averaged vector -> 0
-
-This is the most important number! It tells you how good your
-microgravity simulation is.
-
-TARGET VALUES (from research literature):
-    Excellent: 0.0018g - 0.0033g
-    Good:      < 0.01g
-    Fair:      < 0.05g
-
-
-VELOCITY RATIO (gamma)
-----------------------
-    gamma = omega_phi / omega_psi = (Inner RPM) / (Outer RPM)
-
-For optimal microgravity:
-  - gamma ≈ 1 (similar speeds)
-  - gamma should be IRRATIONAL for non-repeating trajectories
-  - Recommended: 2.0 / 2.1 RPM (ratio = 0.952...)
-
-
-TRAJECTORY ON UNIT SPHERE
--------------------------
-Since ||g|| = 1 always, the gravity vector tip traces a path on a
-unit sphere (radius = 1).
-
-The "Trajectory on Unit Sphere" visualization shows:
-  - Each point = instantaneous gravity direction (Gx, Gy, Gz)
-  - The line = path traced over time
-  - GOOD microgravity = uniform coverage of entire sphere
-  - POOR microgravity = trajectory clusters in one region
-
-
-================================================================================
-                            3. ARCHITECTURE
-================================================================================
-
-SYSTEM DIAGRAM
---------------
-
-+------------------------------------------------------------------+
-|                       FRONTEND (Browser)                          |
-|  +-------------+  +-------------+  +-------------------------+    |
-|  |  Three.js   |  |  Chart.js   |  |    Control Panels       |    |
-|  |  3D Scene   |  |   Graphs    |  | Motors, Dimensions...   |    |
-|  +------+------+  +------+------+  +-----------+-------------+    |
-|         |                |                     |                  |
-|         +----------------+---------------------+                  |
-|                          | WebSocket                              |
-+--------------------------|----------------------------------------+
-                           |
-+--------------------------|----------------------------------------+
-|                    BACKEND (Python/FastAPI)                       |
-|  +------------------------------------------------------------+  |
-|  |                 WebSocket Server (:8080)                    |  |
-|  |               ConnectionManager (broadcast)                 |  |
-|  +---------------------------+--------------------------------+  |
-|                              |                                    |
-|  +---------------------------+--------------------------------+  |
-|  |                   SimulationEngine                          |  |
-|  |  * 50Hz physics loop                                        |  |
-|  |  * 20Hz WebSocket broadcast                                 |  |
-|  |  * Angle integration: phi += omega_phi*dt                   |  |
-|  +---------------------------+--------------------------------+  |
-|                              |                                    |
-|  +---------------------------+--------------------------------+  |
-|  |                 MicrogravitySimulator                       |  |
-|  |  * Rotation matrices R_Y(psi), R_Z(phi)                    |  |
-|  |  * Gravity calculation (Eq. 2)                              |  |
-|  |  * Time-averaging & G* calculation                          |  |
-|  +---------------------------+--------------------------------+  |
-|                              |                                    |
-|  +---------------------------+--------------------------------+  |
-|  |                 HardwareCommandQueue                        |  |
-|  |  * Rate-limited commands (50/sec)                           |  |
-|  |  * Command coalescing                                       |  |
-|  |  * Future: NEMA motor control                               |  |
-|  +------------------------------------------------------------+  |
-+-------------------------------------------------------------------+
-
-
-FILE STRUCTURE
---------------
-Digital_Twin/
-|-- README.md                    # Documentation (Markdown)
-|-- README.txt                   # Documentation (Plain text)
-|-- requirements.txt             # Python dependencies
-|-- docs/
-|   |-- FUTURE_FEATURES.txt      # Planned features roadmap
-|   +-- CAD_REFERENCE.txt        # CAD design documentation
-|-- src/
-|   +-- webapp/
-|       |-- server.py            # FastAPI backend server
-|       +-- static/
-|           +-- index.html       # Frontend dashboard
-+-- venv/                        # Python virtual environment
-
-
-================================================================================
-                            4. INSTALLATION
-================================================================================
-
-PREREQUISITES
--------------
-* Python 3.10 or higher
-* Modern web browser (Chrome, Firefox, Safari, Edge)
-
-SETUP STEPS
------------
-1. Navigate to project directory:
-   cd /path/to/Digital_Twin
-
-2. Create virtual environment:
-   python3 -m venv venv
-
-3. Activate virtual environment:
-   source venv/bin/activate        (macOS/Linux)
-   venv\Scripts\activate           (Windows)
-
-4. Install dependencies:
-   pip install fastapi uvicorn websockets numpy
-
-5. Run the server:
-   cd src/webapp
-   python server.py
-
-6. Open browser:
-   http://localhost:8080
-
-
-================================================================================
-                              5. USAGE
-================================================================================
-
-BASIC CONTROLS
---------------
-+---------------------+----------------------------------------+
-| Control             | Function                               |
-+---------------------+----------------------------------------+
-| Inner Motor Speed   | Set inner frame rotation (0-20 RPM)    |
-| Outer Motor Speed   | Set outer frame rotation (0-20 RPM)    |
-| START               | Begin simulation                       |
-| STOP                | Pause simulation                       |
-| RESET               | Clear all data, reset angles           |
-+---------------------+----------------------------------------+
-
-FRAME DIMENSIONS (Defaults)
----------------------------
-* Inner Frame:  80 cm x 80 cm
-* Outer Frame:  150 cm x 150 cm
-* Payload:      50 cm x 50 cm x 50 cm
-
-VISUALIZATION DISPLAYS
-----------------------
-* 3D View         - Real-time RPM rotation
-* Gravity Vector  - Instantaneous Gx, Gy, Gz
-* Avg Gravity     - Time-averaged <Gx>, <Gy>, <Gz>
-* taSMG (G*)      - Main metric (should converge to ~0.003g)
-* Convergence     - G* over time chart
-* Components      - Gx, Gy, Gz oscillation chart
-* Sphere          - Gravity vector trajectory on unit sphere
-
-
-================================================================================
-                      6. VALIDATION & VERIFICATION
-================================================================================
-
-A. PHYSICS VALIDATION TESTS
----------------------------
-
-+------------------+-------------------------+----------------------+
-| Test             | Expected Result         | How to Verify        |
-+------------------+-------------------------+----------------------+
-| Static (0 RPM)   | Gy=-1, Gx=Gz=0         | Stop both motors     |
-| Inner only       | Gx,Gy oscillate; Gz=0  | Set outer = 0        |
-| Outer only       | Gx,Gz oscillate        | Set inner = 0        |
-| Equal speeds     | G* -> 0.003g           | Run 30+ minutes      |
-| Irrational gamma | Best sphere coverage   | Use 2.0/2.1 RPM      |
-+------------------+-------------------------+----------------------+
-
-
-B. MATHEMATICAL VERIFICATION
-----------------------------
-Test at known angles (phi=45°, psi=30°):
-
-    Gx = -sin(45°) * cos(30°) = -0.612
-    Gy = -cos(45°)            = -0.707
-    Gz = sin(45°) * sin(30°)  = +0.354
+In the code:
+  SAMPLE is tracked in the rotational_history window. It represents:
+    samples_count = len(rotational_history)
     
-    Magnitude = sqrt(0.612^2 + 0.707^2 + 0.354^2) = 1.000
-
-
-C. VISUAL VERIFICATION CHECKLIST
---------------------------------
-[ ] Sphere trajectory covers entire sphere uniformly
-[ ] Gravity chart shows symmetric sinusoidal oscillations
-[ ] G* decreases over time, approaching 0
-[ ] 3D frames rotate smoothly on correct axes
-[ ] Outer frame rotates around Y (vertical)
-[ ] Inner frame rotates around Z (horizontal)
-
-
-D. BENCHMARK VALUES
--------------------
-+------------+-------------+---------+
-| Duration   | Expected G* | Samples |
-+------------+-------------+---------+
-| 1 minute   | < 0.1g      | ~3,000  |
-| 10 minutes | < 0.02g     | ~30,000 |
-| 30 minutes | < 0.005g    | ~90,000 |
-| 60 minutes | < 0.003g    | ~180,000|
-+------------+-------------+---------+
+This is used to ensure the time-averaged gravity calculations are based on
+sufficient data, typically requiring 50+ samples for acceptable accuracy.
 
 
 ================================================================================
-                           7. API REFERENCE
+                              INSTALLATION
 ================================================================================
 
-WEBSOCKET COMMANDS
-------------------
+Prerequisites:
+  • Python 3.9+
+  • pip (Python package manager)
+  • Modern web browser (Chrome, Firefox, Safari, Edge)
 
-Start Simulation:
-    {"action": "start"}
+Step 1: Clone Repository
+  git clone https://github.com/iist-aero/rpm.git
+  cd rpm
 
-Stop Simulation:
-    {"action": "stop"}
+Step 2: Create Virtual Environment
+  python -m venv venv
+  source venv/bin/activate  # On Windows: venv\Scripts\activate
 
-Reset Simulation:
-    {"action": "reset"}
+Step 3: Install Dependencies
+  pip install -r requirements.txt
+  pip install -r requirements-visualization.txt
 
-Set Motor Speeds:
-    {
-      "action": "config",
-      "inner_rpm": 2.0,
-      "outer_rpm": 2.0
-    }
+Step 4: Run the Server
+  python src/main.py
 
-Set Frame Dimensions (in meters):
-    {
-      "action": "frame_dimensions",
-      "inner_length": 0.80,
-      "inner_breadth": 0.80,
-      "outer_length": 1.50,
-      "outer_breadth": 1.50
-    }
+Step 5: Open in Browser
+  Go to: http://localhost:8080
 
-
-WEBSOCKET RESPONSE FORMAT
--------------------------
-    {
-      "phi_deg": 45.0,           // Inner frame angle (degrees)
-      "psi_deg": 30.0,           // Outer frame angle (degrees)
-      "omega_phi_rpm": 2.0,      // Inner motor speed (RPM)
-      "omega_psi_rpm": 2.0,      // Outer motor speed (RPM)
-      "gamma": 1.0,              // Velocity ratio
-      "gravity_x": -0.612,       // Instantaneous Gx
-      "gravity_y": -0.707,       // Instantaneous Gy
-      "gravity_z": 0.354,        // Instantaneous Gz
-      "avg_gravity_x": 0.001,    // Time-averaged <Gx>
-      "avg_gravity_y": -0.002,   // Time-averaged <Gy>
-      "avg_gravity_z": 0.001,    // Time-averaged <Gz>
-      "mean_g": 0.0024,          // G* (taSMG) - MAIN METRIC
-      "instantaneous_g": 1.0,    // ||g|| (always 1)
-      "min_g": 0.0018,           // Minimum G* achieved
-      "max_g": 0.0033,           // Maximum G* achieved
-      "samples": 50000,          // Total samples collected
-      "time_elapsed": 1000.5,    // Simulation time (seconds)
-      "status": "running"        // "running" or "stopped"
-    }
+You should see the 3D simulator with real-time visualization.
 
 
 ================================================================================
-                              QUICK REFERENCE
+                              QUICK START
 ================================================================================
 
-KEY FORMULAS
-------------
-    Gx = -sin(phi) * cos(psi)
-    Gy = -cos(phi)
-    Gz = sin(phi) * sin(psi)
-    
-    G* = sqrt(<Gx>^2 + <Gy>^2 + <Gz>^2)
-    
-    gamma = omega_phi / omega_psi
+1. Start the simulator (see Installation above)
 
-SYMBOL GLOSSARY
----------------
-    phi (φ)    = Inner frame angle
-    psi (ψ)    = Outer frame angle
-    omega_phi  = Inner frame angular velocity (rad/s or RPM)
-    omega_psi  = Outer frame angular velocity (rad/s or RPM)
-    gamma (γ)  = Velocity ratio
-    G*         = Time-averaged simulated microgravity (taSMG)
-    <x>        = Time average of x
+2. In the web interface, you'll see:
+   - 3D visualization of the RPM on the left
+   - Control panel on the right
+   - Dashboard with metrics at bottom
 
-TARGET MICROGRAVITY
--------------------
-    Excellent: G* < 0.003g
-    Good:      G* < 0.01g
-    Fair:      G* < 0.05g
+3. Try these actions:
+   - Increase "Outer Motor Speed": Watch frame rotate in 3D
+   - Increase "Inner Motor Speed": Watch second rotation start
+   - Watch "taSMG" value: Shows simulated gravity vector
+   - Watch "Samples": Increases with each measurement, shows convergence
+
+4. Understanding the metrics:
+   - taSMG: Time-averaged gravity magnitude (should be ~1.0 in no-gravity)
+   - Samples: Number of measurements collected (higher = more accurate)
+   - X/Y/Z: Gravity components in rotating frame
+   - Rotation rates: Angular velocity of each frame
+
+5. For details, see docs/ folder:
+   - docs/README.txt - Comprehensive documentation
+   - docs/formulas.txt - All equations explained
+   - docs/SAMPLES_METRIC_EXPLAINED.txt - Deep dive on SAMPLE metric
+
 
 ================================================================================
-                              END OF README
+                            KEY FEATURES
 ================================================================================
+
+Real-time Physics Engine:
+  • 50 Hz physics update rate
+  • 20 Hz 3D visualization
+  • Paper-accurate calculations based on Yotov et al. research
+  • Microgravity simulation for two-axis rotation
+
+Interactive 3D Visualization:
+  • Rotate view with mouse
+  • Zoom in/out
+  • Real-time updates of rotating frames
+  • Color-coded axes (Red=X, Green=Y, Blue=Z)
+
+Live Metrics Dashboard:
+  • Time-averaged specific microgravity (taSMG)
+  • Gravity components (Gx, Gy, Gz)
+  • Sample convergence indicator
+  • Motor speed readout
+
+Control Panel:
+  • Adjustable frame dimensions
+  • Variable motor speeds for both axes
+  • Real-time feedback
+
+Data Logging (optional):
+  • Export rotation data
+  • Export calculated gravity vectors
+  • For research and validation
+
+
+================================================================================
+                          PHYSICS ACCURACY
+================================================================================
+
+The simulator implements the exact physics described in:
+
+"A New Random Positioning Machine Modification Applied for Microgravity
+Simulation in Laboratory Experiments with Rats"
+- Yotov et al.
+
+Key equations implemented:
+  1. Rotation matrices for two-axis gimbal rotation
+  2. Time-averaged gravity in rotating frame
+  3. Specific microgravity (taSMG) calculations
+  4. Centripetal acceleration components
+  5. Coriolis force effects (v3.2.0+)
+
+For complete equations, see: docs/formulas.txt
+
+
+================================================================================
+                         WHAT'S IN EACH FOLDER
+================================================================================
+
+Root directory:
+  README.txt - This file
+  README.md - Quick overview for GitHub
+  LICENSE - MIT License
+  DISCLAIMER.md - Legal information
+  requirements.txt - Python dependencies
+  setup.sh - Setup script
+
+src/:
+  main.py - Main application entry point
+  physics_engine.py - RPM physics calculations
+  websocket_server.py - Real-time data streaming
+  3D rendering - Three.js visualization
+
+docs/:
+  README.txt - Comprehensive user guide
+  formulas.txt - Complete physics equations
+  MATLAB_ANALYSIS.txt - MATLAB comparison
+  REFERENCES.txt - Research citations
+  SAMPLES_METRIC_EXPLAINED.txt - SAMPLE metric deep dive
+  TASMG_FIX_EXPLANATION.md - Physics fix details
+  CAD_REFERENCE.txt - Component geometry reference
+  FUTURE_FEATURES.txt - Planned features
+  STATUS.md - Version history
+  INDEX.txt - Documentation index
+
+tests/:
+  Unit tests for physics calculations
+  Integration tests for web interface
+
+
+================================================================================
+                            TROUBLESHOOTING
+================================================================================
+
+Server won't start:
+  ✓ Check Python version: python --version (need 3.9+)
+  ✓ Verify dependencies: pip list | grep -E "fastapi|numpy|scipy"
+  ✓ Check port 8080 is free: lsof -i :8080
+  ✓ Try different port: python src/main.py --port 8000
+
+Browser shows blank page:
+  ✓ Check console for errors: F12 → Console tab
+  ✓ Clear browser cache: Ctrl+Shift+Delete
+  ✓ Try different browser (Chrome recommended)
+  ✓ Check WebSocket connection: Look for "WebSocket" in browser console
+
+Physics values look wrong:
+  ✓ Verify research paper: See REFERENCES.txt
+  ✓ Check sample count: Must be > 50 for stability
+  ✓ Reset simulation: Refresh browser page
+  ✓ Review formulas: See docs/formulas.txt
+
+Performance issues:
+  ✓ Lower visualization FPS: Adjust in config
+  ✓ Reduce monitor resolution temporarily
+  ✓ Close other applications
+  ✓ Update GPU drivers
+
+
+================================================================================
+                          NEXT STEPS
+================================================================================
+
+For Users:
+  1. Run the simulator (Quick Start above)
+  2. Experiment with motor speeds
+  3. Observe how taSMG changes with rotation
+  4. Read docs/formulas.txt for physics details
+
+For Developers:
+  1. Read src/physics_engine.py for algorithm details
+  2. Review MATLAB_ANALYSIS.txt for feature roadmap
+  3. Check docs/TASMG_FIX_EXPLANATION.md for recent improvements
+  4. Look at tests/ folder for testing examples
+
+For Researchers:
+  1. Export data from simulator for validation
+  2. Compare with MATLAB reference implementation
+  3. See docs/REFERENCES.txt for paper citation
+  4. Contact: GitHub Issues page
+
+
+================================================================================
+                          LEGAL INFORMATION
+================================================================================
+
+License: MIT License
+  • Free to use, modify, and distribute
+  • See LICENSE file for full text
+  • Commercial use permitted
+  • Must include copyright notice
+
+AI-Generated Code:
+  • Developed with assistance from AI tools
+  • ~80% AI-generated, ~20% human-directed
+  • Full disclosure in DISCLAIMER.md
+  • No AI tools in final binary
+
+Warranty:
+  • NO WARRANTY - Use at your own risk
+  • For research purposes only
+  • See DISCLAIMER.md for full legal terms
+
+Attribution:
+  • Citation: Yotov et al. research paper
+  • Credit: Department of Aerospace Engineering, IIST
+  • See REFERENCES.txt for complete attributions
+
+
+================================================================================
+                        SUPPORT & DOCUMENTATION
+================================================================================
+
+Web-based simulator:
+  Open: http://localhost:8080
+  Port: 8080 (configurable)
+  Server: http://localhost:8080/api
+
+Documentation:
+  Main guide: docs/README.txt
+  Physics: docs/formulas.txt
+  SAMPLE metric: docs/SAMPLES_METRIC_EXPLAINED.txt
+  Features: docs/FUTURE_FEATURES.txt
+  Index: docs/INDEX.txt
+
+Research:
+  Paper reference: REFERENCES.txt
+  CAD models: docs/CAD_REFERENCE.txt
+  MATLAB comparison: docs/MATLAB_ANALYSIS.txt
+  Fix summary: docs/TASMG_FIX_SUMMARY.txt
+
+Development:
+  Issues: GitHub Issues page
+  Code: src/ folder
+  Tests: tests/ folder
+
+
+================================================================================
+                          VERSION HISTORY
+================================================================================
+
+v3.1.1 (Current)
+  ✓ Fixed taSMG recovery with adaptive history management
+  ✓ Reorganized documentation
+  ✓ Added SAMPLE metric explanation
+  ✓ Updated to IIST department licensing
+
+v3.1.0
+  ✓ Initial physics engine implementation
+  ✓ WebSocket server for real-time updates
+  ✓ 3D visualization with Three.js
+  ✓ Live metrics dashboard
+
+For complete history, see: docs/STATUS.md
+
+
+================================================================================
+                          THANK YOU
+================================================================================
+
+This project represents research into microgravity simulation using Random
+Positioning Machines. Thank you for using the RPM Digital Twin simulator.
+
+Questions? See the documentation index:
+  docs/INDEX.txt - Navigation guide for all documentation
+  docs/REFERENCES.txt - Complete source citations
+  DISCLAIMER.md - Legal and licensing information
+
+For updates and issues: GitHub repository
+
+
+================================================================================
+Document Last Updated: January 16, 2026
