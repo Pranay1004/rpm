@@ -385,6 +385,120 @@ class MicrogravitySimulator:
 # CONNECTION MANAGER
 # =============================================================================
 
+class HardwareCommandQueue:
+    """
+    Thread-safe command queue for hardware communication.
+    Prevents bottlenecks by batching/throttling commands.
+    """
+    
+    def __init__(self, max_rate: float = 50.0):
+        self.queue: asyncio.Queue = asyncio.Queue(maxsize=100)
+        self.max_rate = max_rate  # Max commands per second
+        self.min_interval = 1.0 / max_rate
+        self.last_send_time = 0.0
+        self._running = False
+        self._task = None
+        
+        # Latest values (for coalescing rapid updates)
+        self._latest_velocities = None
+        self._latest_tilt = None
+        
+    async def start(self):
+        """Start the command processor."""
+        self._running = True
+        self._task = asyncio.create_task(self._process_queue())
+        logger.info("Hardware command queue started")
+    
+    async def stop(self):
+        """Stop the command processor."""
+        self._running = False
+        if self._task:
+            self._task.cancel()
+            
+    async def _process_queue(self):
+        """Process commands from queue with rate limiting."""
+        while self._running:
+            try:
+                # Wait for command
+                cmd = await asyncio.wait_for(self.queue.get(), timeout=0.1)
+                
+                # Rate limiting
+                now = time.time()
+                elapsed = now - self.last_send_time
+                if elapsed < self.min_interval:
+                    await asyncio.sleep(self.min_interval - elapsed)
+                
+                # Send to hardware
+                await self._send_to_hardware(cmd)
+                self.last_send_time = time.time()
+                
+            except asyncio.TimeoutError:
+                # Check for coalesced commands
+                await self._send_coalesced_commands()
+            except Exception as e:
+                logger.error(f"Command queue error: {e}")
+    
+    async def _send_coalesced_commands(self):
+        """Send any coalesced (batched) commands."""
+        if self._latest_velocities:
+            await self._send_to_hardware({
+                'type': 'velocity',
+                'data': self._latest_velocities
+            })
+            self._latest_velocities = None
+            
+        if self._latest_tilt:
+            await self._send_to_hardware({
+                'type': 'tilt',
+                'data': self._latest_tilt
+            })
+            self._latest_tilt = None
+    
+    async def _send_to_hardware(self, cmd: dict):
+        """
+        Actual hardware communication.
+        Override this for real hardware integration.
+        """
+        cmd_type = cmd.get('type', 'unknown')
+        data = cmd.get('data', {})
+        
+        # Log the command (in production, send to serial/network)
+        logger.debug(f"HW CMD [{cmd_type}]: {data}")
+        
+        # Placeholder for real hardware communication:
+        # if self.serial_connection:
+        #     self.serial_connection.write(json.dumps(cmd).encode())
+        # elif self.network_connection:
+        #     await self.network_connection.send(json.dumps(cmd))
+    
+    def queue_velocity(self, inner_rpm: float, outer_rpm: float):
+        """Queue velocity command (coalesces rapid updates)."""
+        self._latest_velocities = {
+            'inner_rpm': inner_rpm,
+            'outer_rpm': outer_rpm,
+            'timestamp': time.time()
+        }
+        
+    def queue_tilt(self, inner_tilt: float, outer_tilt: float):
+        """Queue tilt command (coalesces rapid updates)."""
+        self._latest_tilt = {
+            'inner_tilt': inner_tilt,
+            'outer_tilt': outer_tilt,
+            'timestamp': time.time()
+        }
+        
+    async def queue_immediate(self, cmd_type: str, data: dict):
+        """Queue a command that needs immediate processing."""
+        try:
+            self.queue.put_nowait({
+                'type': cmd_type,
+                'data': data,
+                'timestamp': time.time()
+            })
+        except asyncio.QueueFull:
+            logger.warning(f"Command queue full, dropping {cmd_type}")
+
+
 class ConnectionManager:
     """Manages hardware connections (serial, network, etc.)."""
     
@@ -392,6 +506,7 @@ class ConnectionManager:
         self.connections: Dict[str, ConnectionInfo] = {}
         self._scan_interval = 5.0  # seconds
         self._last_scan = 0.0
+        self.command_queue = HardwareCommandQueue()
     
     async def scan_connections(self) -> Dict[str, ConnectionInfo]:
         """Scan for available hardware connections."""
@@ -476,7 +591,15 @@ class ConnectionManager:
 # =============================================================================
 
 class SimulationEngine:
-    """Real-time simulation manager with WebSocket broadcasting."""
+    """
+    Real-time simulation manager with WebSocket broadcasting.
+    
+    Features:
+    - 50Hz physics simulation
+    - 20Hz client broadcast (reduces network load)
+    - Hardware command queueing (prevents bottlenecks)
+    - Thread-safe state management
+    """
     
     def __init__(self):
         self.simulator = MicrogravitySimulator()
@@ -497,21 +620,49 @@ class SimulationEngine:
         self.inner_tilt_deg = 0.0
         self.outer_tilt_deg = 0.0
         
+        # Target values for smooth transitions (server-side too)
+        self._target_inner_rpm = 2.0
+        self._target_outer_rpm = 2.0
+        self._target_inner_tilt = 0.0
+        self._target_outer_tilt = 0.0
+        
         self.start_time = 0.0
         
         logger.info("Simulation engine initialized with paper equations (Eq. 2)")
     
+    async def start_hardware_queue(self):
+        """Start the hardware command queue processor."""
+        await self.connection_manager.command_queue.start()
+    
+    async def stop_hardware_queue(self):
+        """Stop the hardware command queue processor."""
+        await self.connection_manager.command_queue.stop()
+    
     def set_velocities(self, inner_rpm: float, outer_rpm: float):
-        """Update target velocities in RPM."""
+        """
+        Update target velocities in RPM.
+        Queues command to hardware to prevent bottlenecks.
+        """
         self.omega_phi_rpm = inner_rpm
         self.omega_psi_rpm = outer_rpm
         self.simulator.set_velocities(inner_rpm, outer_rpm)
+        
+        # Queue for hardware (coalesces rapid updates)
+        self.connection_manager.command_queue.queue_velocity(inner_rpm, outer_rpm)
+        logger.info(f"Velocities set: ω_φ={inner_rpm:.2f} RPM, ω_ψ={outer_rpm:.2f} RPM")
     
     def set_axis_inclination(self, inner_tilt: float, outer_tilt: float):
-        """Set axis inclination angles in degrees."""
+        """
+        Set axis inclination angles in degrees.
+        Queues command to hardware to prevent bottlenecks.
+        """
         self.inner_tilt_deg = inner_tilt
         self.outer_tilt_deg = outer_tilt
         self.simulator.set_axis_inclination(inner_tilt, outer_tilt)
+        
+        # Queue for hardware (coalesces rapid updates)
+        self.connection_manager.command_queue.queue_tilt(inner_tilt, outer_tilt)
+        logger.info(f"Axis inclination: inner={inner_tilt}°, outer={outer_tilt}°")
     
     def set_frame_dimensions(self, inner_l: float, inner_b: float,
                             outer_l: float, outer_b: float):
@@ -627,10 +778,13 @@ engine = SimulationEngine()
 async def lifespan(app: FastAPI):
     """Manage application lifespan."""
     # Startup
+    await engine.start_hardware_queue()
     asyncio.create_task(engine.run_loop())
     logger.info("RPM Digital Twin server started")
+    logger.info("Hardware command queue active - ready for sensor connections")
     yield
     # Shutdown
+    await engine.stop_hardware_queue()
     logger.info("RPM Digital Twin server stopped")
 
 

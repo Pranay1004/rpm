@@ -778,10 +778,10 @@
                     <div class="panel-indicator" id="motor-indicator"></div>
                 </div>
                 
-                <!-- Inner Motor (φ rotation) -->
+                <!-- Inner Motor -->
                 <div class="motor-control">
                     <div class="motor-label">
-                        <span class="motor-name">Inner Motor (ω_φ)</span>
+                        <span class="motor-name">Inner Motor Speed</span>
                         <div class="motor-input-group">
                             <input type="number" class="motor-input" id="inner-rpm-input" 
                                    value="2.0" min="0" max="20" step="0.1">
@@ -800,10 +800,10 @@
                     </div>
                 </div>
                 
-                <!-- Outer Motor (ψ rotation) -->
+                <!-- Outer Motor -->
                 <div class="motor-control">
                     <div class="motor-label">
-                        <span class="motor-name">Outer Motor (ω_ψ)</span>
+                        <span class="motor-name">Outer Motor Speed</span>
                         <div class="motor-input-group">
                             <input type="number" class="motor-input" id="outer-rpm-input" 
                                    value="2.0" min="0" max="20" step="0.1">
@@ -834,29 +834,29 @@
             <!-- Frame Dimensions -->
             <div class="panel">
                 <div class="panel-header">
-                    <span class="panel-title">Frame Dimensions (m)</span>
+                    <span class="panel-title">Frame Dimensions (cm)</span>
                 </div>
                 
                 <div class="dimension-grid">
                     <div class="dimension-input-group">
                         <label class="dimension-label">Inner Length</label>
                         <input type="number" class="dimension-input" id="inner-length" 
-                               value="0.30" min="0.1" max="2" step="0.01">
+                               value="80" min="10" max="300" step="1">
                     </div>
                     <div class="dimension-input-group">
                         <label class="dimension-label">Inner Breadth</label>
                         <input type="number" class="dimension-input" id="inner-breadth" 
-                               value="0.20" min="0.1" max="2" step="0.01">
+                               value="80" min="10" max="300" step="1">
                     </div>
                     <div class="dimension-input-group">
                         <label class="dimension-label">Outer Length</label>
                         <input type="number" class="dimension-input" id="outer-length" 
-                               value="0.50" min="0.1" max="2" step="0.01">
+                               value="150" min="10" max="300" step="1">
                     </div>
                     <div class="dimension-input-group">
                         <label class="dimension-label">Outer Breadth</label>
                         <input type="number" class="dimension-input" id="outer-breadth" 
-                               value="0.35" min="0.1" max="2" step="0.01">
+                               value="150" min="10" max="300" step="1">
                     </div>
                 </div>
                 
@@ -892,6 +892,112 @@
                 </div>
             </div>
             
+            <!-- Enclosure / Bounding Box -->
+            <div class="panel">
+                <div class="panel-header">
+                    <span class="panel-title">Sample Enclosure (cm)</span>
+                    <div class="panel-indicator" id="enclosure-indicator"></div>
+                </div>
+                
+                <div class="dimension-grid">
+                    <div class="dimension-input-group">
+                        <label class="dimension-label">Width (X)</label>
+                        <input type="number" class="dimension-input" id="enclosure-x" 
+                               value="50" min="10" max="200" step="5" style="color: #ff4444;">
+                    </div>
+                    <div class="dimension-input-group">
+                        <label class="dimension-label">Height (Y)</label>
+                        <input type="number" class="dimension-input" id="enclosure-y" 
+                               value="50" min="10" max="200" step="5" style="color: #44ff44;">
+                    </div>
+                    <div class="dimension-input-group">
+                        <label class="dimension-label">Depth (Z)</label>
+                        <input type="number" class="dimension-input" id="enclosure-z" 
+                               value="50" min="10" max="200" step="5" style="color: #4444ff;">
+                    </div>
+                    <div class="dimension-input-group">
+                        <label class="dimension-label">Show Box</label>
+                        <select class="dimension-input" id="show-enclosure" style="color: var(--accent-cyan);">
+                            <option value="yes">Yes</option>
+                            <option value="no">No</option>
+                        </select>
+                    </div>
+                </div>
+                
+                <div class="button-row" style="margin-top: 10px;">
+                    <button class="btn btn-reset" onclick="updateEnclosure()">Apply Enclosure</button>
+                </div>
+                
+                <!-- 3D Point Sampling -->
+                <div style="margin-top: 16px; padding-top: 12px; border-top: 1px solid var(--border-color);">
+                    <div class="panel-title" style="margin-bottom: 10px;">Sample Point Calculator</div>
+                    <div class="dimension-grid">
+                        <div class="dimension-input-group">
+                            <label class="dimension-label">X (cm)</label>
+                            <input type="number" class="dimension-input" id="sample-pt-x" 
+                                   value="0" min="-100" max="100" step="1" style="color: #ff4444;">
+                        </div>
+                        <div class="dimension-input-group">
+                            <label class="dimension-label">Y (cm)</label>
+                            <input type="number" class="dimension-input" id="sample-pt-y" 
+                                   value="0" min="-100" max="100" step="1" style="color: #44ff44;">
+                        </div>
+                        <div class="dimension-input-group">
+                            <label class="dimension-label">Z (cm)</label>
+                            <input type="number" class="dimension-input" id="sample-pt-z" 
+                                   value="0" min="-100" max="100" step="1" style="color: #4444ff;">
+                        </div>
+                        <div class="dimension-input-group">
+                            <label class="dimension-label">Show Point</label>
+                            <button class="btn btn-reset" style="padding: 8px; font-size: 10px;" onclick="addSamplePoint()">+ Add</button>
+                        </div>
+                    </div>
+                    <div style="margin-top: 8px; font-size: 10px; color: var(--text-muted);">
+                        Add points inside enclosure to track local gravity
+                    </div>
+                    <div id="sample-points-list" style="margin-top: 8px; max-height: 80px; overflow-y: auto; font-size: 10px;">
+                        <!-- Sample points will be listed here -->
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Payload Dimensions -->
+            <div class="panel">
+                <div class="panel-header">
+                    <span class="panel-title">Payload Dimensions (cm)</span>
+                </div>
+                
+                <div class="dimension-grid">
+                    <div class="dimension-input-group">
+                        <label class="dimension-label">Width (X)</label>
+                        <input type="number" class="dimension-input" id="payload-x" 
+                               value="50" min="5" max="100" step="5" style="color: var(--accent-cyan);">
+                    </div>
+                    <div class="dimension-input-group">
+                        <label class="dimension-label">Height (Y)</label>
+                        <input type="number" class="dimension-input" id="payload-y" 
+                               value="50" min="5" max="100" step="5" style="color: var(--accent-cyan);">
+                    </div>
+                    <div class="dimension-input-group">
+                        <label class="dimension-label">Depth (Z)</label>
+                        <input type="number" class="dimension-input" id="payload-z" 
+                               value="50" min="5" max="100" step="5" style="color: var(--accent-cyan);">
+                    </div>
+                    <div class="dimension-input-group">
+                        <label class="dimension-label">Show Payload</label>
+                        <select class="dimension-input" id="show-payload" style="color: var(--accent-cyan);">
+                            <option value="yes">Yes</option>
+                            <option value="no">No</option>
+                        </select>
+                    </div>
+                </div>
+                <div style="margin-top: 6px; font-size: 10px; color: var(--text-muted);">Payload must fit inside inner frame</div>
+                
+                <div class="button-row" style="margin-top: 10px;">
+                    <button class="btn btn-reset" onclick="updatePayloadDimensions()">Apply Payload</button>
+                </div>
+            </div>
+            
         </div>
         
         <!-- CENTER COLUMN - 3D VISUALIZATION -->
@@ -901,7 +1007,12 @@
             <div class="viz-panel">
                 <div class="viz-overlay-top">
                     <span class="panel-title">3D Visualization</span>
-                    <span class="viz-mode">Real-Time • 50Hz</span>
+                    <div style="display: flex; align-items: center; gap: 8px;">
+                        <button onclick="zoomIn()" style="background: var(--bg-secondary); border: 1px solid var(--border-color); color: var(--accent-cyan); padding: 4px 10px; border-radius: 4px; cursor: pointer; font-size: 14px;" title="Zoom In">🔍+</button>
+                        <button onclick="zoomOut()" style="background: var(--bg-secondary); border: 1px solid var(--border-color); color: var(--accent-cyan); padding: 4px 10px; border-radius: 4px; cursor: pointer; font-size: 14px;" title="Zoom Out">🔍−</button>
+                        <button onclick="resetView()" style="background: var(--bg-secondary); border: 1px solid var(--border-color); color: var(--accent-cyan); padding: 4px 10px; border-radius: 4px; cursor: pointer; font-size: 14px;" title="Reset View">⟲</button>
+                        <span class="viz-mode">Real-Time • 50Hz</span>
+                    </div>
                 </div>
                 <canvas id="rpm-canvas"></canvas>
                 <div class="viz-overlay-bottom">
@@ -1067,13 +1178,37 @@
         const maxDataPoints = 300;
         let isRunning = false;
         
-        // Frame dimensions for 3D
+        // Frame dimensions for 3D (must be larger than payload)
         let frameDimensions = {
-            innerLength: 0.30,
-            innerBreadth: 0.20,
-            outerLength: 0.50,
-            outerBreadth: 0.35
+            innerLength: 0.80,   // 80cm - larger than 50cm payload
+            innerBreadth: 0.80,  // 80cm
+            outerLength: 1.50,   // 150cm - larger than inner frame
+            outerBreadth: 1.50   // 150cm
         };
+        
+        // Enclosure / Bounding box dimensions (in meters)
+        let enclosureDimensions = { x: 0.50, y: 0.50, z: 0.50 };
+        let enclosureMesh = null;
+        let showEnclosure = true;
+        
+        // Payload box mounted on inner frame (centered at origin)
+        let payloadMesh = null;
+        let payloadDimensions = { x: 0.50, y: 0.50, z: 0.50 }; // 50cm cube
+        
+        // Camera/zoom state - dynamically calculated based on frame size
+        let cameraDistance = 4.5;  // Default for 150cm frame
+        let cameraAngleX = 0.5;
+        let cameraAngleY = 0.8;
+        let minCameraDistance = 0.8;
+        let maxCameraDistance = 15.0;
+        
+        // Smooth tilt transitions
+        let targetTilt = { inner: 0, outer: 0 };
+        let tiltTransitionSpeed = 2.0; // degrees per frame
+        
+        // Sample points for gravity calculation at specific locations
+        let samplePoints = [];
+        let samplePointMeshes = [];
         
         // ============================================
         // THREE.JS 3D VISUALIZATION - PROPER RPM STRUCTURE
@@ -1120,9 +1255,10 @@
             pointLight1.position.set(1, 0.5, 1);
             scene.add(pointLight1);
             
-            // Grid (subtle)
-            const gridHelper = new THREE.GridHelper(2, 20, 0x1a1a2e, 0x0a0a12);
-            gridHelper.position.y = -0.35;
+            // Grid (subtle) - sized for 150cm outer frame + shafts
+            const gridSize = Math.max(frameDimensions.outerLength, frameDimensions.outerBreadth) * 3;
+            const gridHelper = new THREE.GridHelper(gridSize, 40, 0x1a1a2e, 0x0a0a12);
+            gridHelper.position.y = -frameDimensions.outerBreadth * 0.7;
             scene.add(gridHelper);
             
             // Create reference axes (dotted lines for lab frame)
@@ -1131,8 +1267,187 @@
             // Create RPM frames
             createFrames();
             
+            // Create enclosure/bounding box
+            createEnclosure();
+            
             animate();
             window.addEventListener('resize', onWindowResize);
+        }
+        
+        function createEnclosure() {
+            // Remove existing enclosure from innerFrame or scene
+            if (enclosureMesh) {
+                if (innerFrame) {
+                    innerFrame.remove(enclosureMesh);
+                }
+                scene.remove(enclosureMesh);
+                enclosureMesh = null;
+            }
+            
+            if (!showEnclosure) return;
+            
+            // Create wireframe box for enclosure (attached to inner frame)
+            const geometry = new THREE.BoxGeometry(
+                enclosureDimensions.x,
+                enclosureDimensions.y,
+                enclosureDimensions.z
+            );
+            const edges = new THREE.EdgesGeometry(geometry);
+            const material = new THREE.LineBasicMaterial({ 
+                color: 0x00ff9d, 
+                transparent: true, 
+                opacity: 0.5 
+            });
+            enclosureMesh = new THREE.LineSegments(edges, material);
+            
+            // Add to inner frame so it rotates with it
+            if (innerFrame) {
+                innerFrame.add(enclosureMesh);
+            } else {
+                scene.add(enclosureMesh);
+            }
+        }
+        
+        function updateEnclosure() {
+            // Get dimensions from inputs (convert cm to m)
+            enclosureDimensions.x = parseFloat(document.getElementById('enclosure-x').value) / 100 || 0.50;
+            enclosureDimensions.y = parseFloat(document.getElementById('enclosure-y').value) / 100 || 0.50;
+            enclosureDimensions.z = parseFloat(document.getElementById('enclosure-z').value) / 100 || 0.50;
+            showEnclosure = document.getElementById('show-enclosure').value === 'yes';
+            
+            // Recreate enclosure
+            createEnclosure();
+            
+            // Update sample points positions
+            updateSamplePointMeshes();
+        }
+        
+        function addSamplePoint() {
+            const x = parseFloat(document.getElementById('sample-pt-x').value) / 100 || 0;
+            const y = parseFloat(document.getElementById('sample-pt-y').value) / 100 || 0;
+            const z = parseFloat(document.getElementById('sample-pt-z').value) / 100 || 0;
+            
+            // Check if point is within enclosure
+            const halfX = enclosureDimensions.x / 2;
+            const halfY = enclosureDimensions.y / 2;
+            const halfZ = enclosureDimensions.z / 2;
+            
+            if (Math.abs(x) > halfX || Math.abs(y) > halfY || Math.abs(z) > halfZ) {
+                alert(`Point (${(x*100).toFixed(0)}, ${(y*100).toFixed(0)}, ${(z*100).toFixed(0)}) cm is outside the enclosure!`);
+                return;
+            }
+            
+            const pointId = Date.now();
+            const point = {
+                id: pointId,
+                x: x,
+                y: y,
+                z: z,
+                gravityHistory: [],
+                avgGravity: { x: 0, y: 0, z: 0 },
+                taSMG: 1.0
+            };
+            
+            samplePoints.push(point);
+            
+            // Create visual marker for the point
+            const markerGeom = new THREE.SphereGeometry(0.01, 16, 16);
+            const markerMat = new THREE.MeshBasicMaterial({ 
+                color: 0xffff00,
+                transparent: true,
+                opacity: 0.9
+            });
+            const marker = new THREE.Mesh(markerGeom, markerMat);
+            marker.position.set(x, y, z);
+            marker.userData.pointId = pointId;
+            
+            if (innerFrame) {
+                innerFrame.add(marker);
+            }
+            samplePointMeshes.push(marker);
+            
+            // Update UI list
+            updateSamplePointsList();
+        }
+        
+        function removeSamplePoint(pointId) {
+            // Remove from array
+            samplePoints = samplePoints.filter(p => p.id !== pointId);
+            
+            // Remove mesh
+            const meshIndex = samplePointMeshes.findIndex(m => m.userData.pointId === pointId);
+            if (meshIndex !== -1) {
+                const mesh = samplePointMeshes[meshIndex];
+                if (innerFrame) innerFrame.remove(mesh);
+                else scene.remove(mesh);
+                samplePointMeshes.splice(meshIndex, 1);
+            }
+            
+            updateSamplePointsList();
+        }
+        
+        function updateSamplePointMeshes() {
+            // Reposition all sample point meshes
+            samplePointMeshes.forEach(mesh => {
+                const point = samplePoints.find(p => p.id === mesh.userData.pointId);
+                if (point) {
+                    mesh.position.set(point.x, point.y, point.z);
+                }
+            });
+        }
+        
+        function updateSamplePointsList() {
+            const listEl = document.getElementById('sample-points-list');
+            if (samplePoints.length === 0) {
+                listEl.innerHTML = '<span style="color: var(--text-muted);">No sample points added</span>';
+                return;
+            }
+            
+            let html = '';
+            samplePoints.forEach(pt => {
+                const xCm = (pt.x * 100).toFixed(0);
+                const yCm = (pt.y * 100).toFixed(0);
+                const zCm = (pt.z * 100).toFixed(0);
+                html += `
+                    <div style="display: flex; justify-content: space-between; align-items: center; padding: 4px 0; border-bottom: 1px solid var(--border-color);">
+                        <span style="color: #ffff00;">● (${xCm}, ${yCm}, ${zCm}) cm</span>
+                        <span style="color: var(--accent-green);">taSMG: ${pt.taSMG.toFixed(4)}g</span>
+                        <button onclick="removeSamplePoint(${pt.id})" style="background: none; border: none; color: var(--accent-red); cursor: pointer; font-size: 12px;">✕</button>
+                    </div>
+                `;
+            });
+            listEl.innerHTML = html;
+        }
+        
+        function updateSamplePointsGravity(gx, gy, gz) {
+            // Update gravity for each sample point
+            // Note: For a rigid body RPM, all points experience the same gravity vector direction
+            // but the effective gravity at different positions could include centrifugal effects
+            // For simplicity, we track the same gravity vector for all points in the enclosure
+            
+            samplePoints.forEach(pt => {
+                pt.gravityHistory.push({ x: gx, y: gy, z: gz });
+                if (pt.gravityHistory.length > 3000) {
+                    pt.gravityHistory.shift();
+                }
+                
+                // Calculate time-averaged gravity for this point
+                const n = pt.gravityHistory.length;
+                let sumX = 0, sumY = 0, sumZ = 0;
+                pt.gravityHistory.forEach(g => {
+                    sumX += g.x;
+                    sumY += g.y;
+                    sumZ += g.z;
+                });
+                
+                pt.avgGravity = { x: sumX/n, y: sumY/n, z: sumZ/n };
+                pt.taSMG = Math.sqrt(pt.avgGravity.x**2 + pt.avgGravity.y**2 + pt.avgGravity.z**2);
+            });
+            
+            // Update list display periodically (every 50 updates)
+            if (Math.random() < 0.02) {
+                updateSamplePointsList();
+            }
         }
         
         function createDottedLine(start, end, color) {
@@ -1247,98 +1562,146 @@
             
             const outerW = frameDimensions.outerLength;
             const outerH = frameDimensions.outerBreadth;
-            const outerD = 0.08;  // Depth of outer frame
+            const outerD = outerW * 0.06;  // Depth proportional to width
             const innerW = frameDimensions.innerLength;
             const innerH = frameDimensions.innerBreadth;
-            const innerD = 0.05;
-            const barThickness = 0.018;
+            const innerD = innerW * 0.05;
+            const barThickness = Math.max(0.02, outerW * 0.015);  // Scale with frame size
             
             // === OUTER FRAME (Gray/Silver) - rotates around Y axis ===
             outerFrame = new THREE.Group();
             
-            // Create outer frame structure (like Figure 2 - gray frame)
-            const outerFrameGeom = createBoxFrame(outerW, outerH, outerD, barThickness, 0x707080);
+            // Create outer frame structure (like Figure 4G - gray frame)
+            const outerFrameGeom = createBoxFrame(outerW, outerH, outerD, barThickness, 0x808090);
             outerFrame.add(outerFrameGeom);
             
-            // Outer frame rotation shaft (Y-axis) - vertical cylinders top and bottom
-            const shaftMat = new THREE.MeshPhongMaterial({ color: 0x505060 });
-            const shaftRadius = 0.015;
+            // ═══════════════════════════════════════════════════════════════════
+            // OUTER FRAME VERTICAL SHAFTS (Fig 4F, 5A) - Y-axis rotation
+            // These connect to the A-frame stands (future feature)
+            // ═══════════════════════════════════════════════════════════════════
+            const shaftMat = new THREE.MeshPhongMaterial({ color: 0x606070, shininess: 80 });
+            const shaftRadius = barThickness * 0.6;
+            const shaftLength = outerH * 0.18;  // 18% of frame height
             
-            // Top shaft
+            // Top shaft (where outer motor connects)
             const topShaft = new THREE.Mesh(
-                new THREE.CylinderGeometry(shaftRadius, shaftRadius, 0.08, 16),
+                new THREE.CylinderGeometry(shaftRadius, shaftRadius, shaftLength, 16),
                 shaftMat
             );
-            topShaft.position.set(0, outerH/2 + 0.04, 0);
+            topShaft.position.set(0, outerH/2 + shaftLength/2, 0);
             outerFrame.add(topShaft);
+            
+            // Top shaft cap (bearing housing visual)
+            const topCap = new THREE.Mesh(
+                new THREE.CylinderGeometry(shaftRadius * 1.5, shaftRadius * 1.5, shaftLength * 0.15, 16),
+                new THREE.MeshPhongMaterial({ color: 0x505060, shininess: 60 })
+            );
+            topCap.position.set(0, outerH/2 + shaftLength + shaftLength * 0.075, 0);
+            outerFrame.add(topCap);
             
             // Bottom shaft
             const bottomShaft = new THREE.Mesh(
-                new THREE.CylinderGeometry(shaftRadius, shaftRadius, 0.08, 16),
+                new THREE.CylinderGeometry(shaftRadius, shaftRadius, shaftLength, 16),
                 shaftMat
             );
-            bottomShaft.position.set(0, -outerH/2 - 0.04, 0);
+            bottomShaft.position.set(0, -outerH/2 - shaftLength/2, 0);
             outerFrame.add(bottomShaft);
             
-            // === INNER FRAME (Blue) - rotates around local X axis ===
+            // Bottom shaft cap
+            const bottomCap = new THREE.Mesh(
+                new THREE.CylinderGeometry(shaftRadius * 1.5, shaftRadius * 1.5, shaftLength * 0.15, 16),
+                new THREE.MeshPhongMaterial({ color: 0x505060, shininess: 60 })
+            );
+            bottomCap.position.set(0, -outerH/2 - shaftLength - shaftLength * 0.075, 0);
+            outerFrame.add(bottomCap);
+            
+            // === INNER FRAME (Blue) - rotates around local Z axis ===
             innerFrame = new THREE.Group();
             
-            // Create inner frame structure (like Figure 2 - blue frame)
-            const innerFrameGeom = createBoxFrame(innerW, innerH, innerD, barThickness * 0.8, 0x4080ff);
+            // Create inner frame structure (like Figure 4L - blue frame)
+            const innerFrameGeom = createBoxFrame(innerW, innerH, innerD, barThickness * 0.8, 0x5090ff);
             innerFrame.add(innerFrameGeom);
             
-            // Inner frame rotation shafts (along X-axis of inner frame)
-            const innerShaftMat = new THREE.MeshPhongMaterial({ color: 0x404050 });
-            const innerShaftLen = (outerD - innerD) / 2 + 0.02;
+            // ═══════════════════════════════════════════════════════════════════
+            // INNER-TO-OUTER HORIZONTAL CONNECTION BARS (Fig 4I, 5C)
+            // These are the rotation axis for inner frame (Z-axis rotation)
+            // ═══════════════════════════════════════════════════════════════════
+            const innerShaftMat = new THREE.MeshPhongMaterial({ color: 0x707080, shininess: 80 });
+            const innerShaftRadius = barThickness * 0.5;
+            // Bar length = gap between inner and outer frame edges
+            const gapWidth = (outerW - innerW) / 2;
+            const innerShaftLen = gapWidth * 0.9;  // 90% of gap
             
-            // Left shaft (connects to outer frame)
-            const leftShaft = new THREE.Mesh(
-                new THREE.CylinderGeometry(shaftRadius * 0.8, shaftRadius * 0.8, innerShaftLen, 16),
+            // Left connection bar (connects inner frame to outer frame)
+            const leftBar = new THREE.Mesh(
+                new THREE.CylinderGeometry(innerShaftRadius, innerShaftRadius, innerShaftLen, 16),
                 innerShaftMat
             );
-            leftShaft.rotation.z = Math.PI / 2;
-            leftShaft.position.set(-innerW/2 - innerShaftLen/2, 0, 0);
-            innerFrame.add(leftShaft);
+            leftBar.rotation.z = Math.PI / 2;  // Rotate to horizontal along X
+            leftBar.position.set(-innerW/2 - innerShaftLen/2, 0, 0);
+            innerFrame.add(leftBar);
             
-            // Right shaft
-            const rightShaft = new THREE.Mesh(
-                new THREE.CylinderGeometry(shaftRadius * 0.8, shaftRadius * 0.8, innerShaftLen, 16),
+            // Left bar mount (on outer frame side)
+            const leftMount = new THREE.Mesh(
+                new THREE.CylinderGeometry(innerShaftRadius * 1.4, innerShaftRadius * 1.4, innerShaftLen * 0.12, 16),
+                new THREE.MeshPhongMaterial({ color: 0x505060, shininess: 60 })
+            );
+            leftMount.rotation.z = Math.PI / 2;
+            leftMount.position.set(-innerW/2 - innerShaftLen - innerShaftLen * 0.06, 0, 0);
+            innerFrame.add(leftMount);
+            
+            // Right connection bar
+            const rightBar = new THREE.Mesh(
+                new THREE.CylinderGeometry(innerShaftRadius, innerShaftRadius, innerShaftLen, 16),
                 innerShaftMat
             );
-            rightShaft.rotation.z = Math.PI / 2;
-            rightShaft.position.set(innerW/2 + innerShaftLen/2, 0, 0);
-            innerFrame.add(rightShaft);
+            rightBar.rotation.z = Math.PI / 2;
+            rightBar.position.set(innerW/2 + innerShaftLen/2, 0, 0);
+            innerFrame.add(rightBar);
+            
+            // Right bar mount
+            const rightMount = new THREE.Mesh(
+                new THREE.CylinderGeometry(innerShaftRadius * 1.4, innerShaftRadius * 1.4, innerShaftLen * 0.12, 16),
+                new THREE.MeshPhongMaterial({ color: 0x505060, shininess: 60 })
+            );
+            rightMount.rotation.z = Math.PI / 2;
+            rightMount.position.set(innerW/2 + innerShaftLen + innerShaftLen * 0.06, 0, 0);
+            innerFrame.add(rightMount);
             
             // === SAMPLE PLATFORM (at center of inner frame) ===
             sample = new THREE.Group();
             
-            // Sample holder platform
-            const platformGeom = new THREE.CylinderGeometry(0.025, 0.025, 0.008, 32);
+            // Sample holder platform (scaled with frame)
+            const platformSize = Math.min(innerW, innerH) * 0.04;
+            const platformGeom = new THREE.CylinderGeometry(platformSize, platformSize, platformSize * 0.3, 32);
             const platformMat = new THREE.MeshPhongMaterial({ color: 0x00ff9d, emissive: 0x00ff9d, emissiveIntensity: 0.3 });
             const platform = new THREE.Mesh(platformGeom, platformMat);
             sample.add(platform);
             
             // Sample (glowing sphere)
             const sampleSphere = new THREE.Mesh(
-                new THREE.SphereGeometry(0.018, 32, 32),
+                new THREE.SphereGeometry(platformSize * 0.7, 32, 32),
                 new THREE.MeshPhongMaterial({ 
                     color: 0x00ff9d, 
                     emissive: 0x00ff9d, 
                     emissiveIntensity: 0.6 
                 })
             );
-            sampleSphere.position.y = 0.015;
+            sampleSphere.position.y = platformSize * 0.6;
             sample.add(sampleSphere);
             
             // Glow
             const glow = new THREE.Mesh(
-                new THREE.SphereGeometry(0.025, 16, 16),
+                new THREE.SphereGeometry(platformSize, 16, 16),
                 new THREE.MeshBasicMaterial({ color: 0x00ff9d, transparent: true, opacity: 0.25 })
             );
-            glow.position.y = 0.015;
+            glow.position.y = platformSize * 0.6;
             sample.add(glow);
             
             innerFrame.add(sample);
+            
+            // === PAYLOAD BOX (mounted on inner frame like CAD images) ===
+            createPayloadBox();
             
             // === ROTATING AXIS INDICATORS (solid lines on frames) ===
             // Outer frame Y-axis indicator (green solid)
@@ -1389,17 +1752,136 @@
         }
         
         function updateFrameRotations(phiDeg, psiDeg) {
+            // Smooth tilt transition
+            smoothTiltUpdate();
+            
             if (outerFrame) {
                 // Outer frame rotates around Y axis (ψ rotation)
-                // Apply tilt first, then rotation
+                // Apply smoothed tilt first, then rotation
                 outerFrame.rotation.x = axisTilt.outer * Math.PI / 180;
                 outerFrame.rotation.y = psiDeg * Math.PI / 180;
             }
             if (innerFrame) {
                 // Inner frame rotates around Z axis (φ rotation)
-                // Apply tilt to inner frame
+                // Apply smoothed tilt to inner frame
                 innerFrame.rotation.x = axisTilt.inner * Math.PI / 180;
                 innerFrame.rotation.z = phiDeg * Math.PI / 180;
+            }
+        }
+        
+        function smoothTiltUpdate() {
+            // Gradually move axisTilt towards targetTilt
+            const step = tiltTransitionSpeed;
+            
+            if (Math.abs(axisTilt.inner - targetTilt.inner) > 0.1) {
+                if (axisTilt.inner < targetTilt.inner) {
+                    axisTilt.inner = Math.min(axisTilt.inner + step, targetTilt.inner);
+                } else {
+                    axisTilt.inner = Math.max(axisTilt.inner - step, targetTilt.inner);
+                }
+            } else {
+                axisTilt.inner = targetTilt.inner;
+            }
+            
+            if (Math.abs(axisTilt.outer - targetTilt.outer) > 0.1) {
+                if (axisTilt.outer < targetTilt.outer) {
+                    axisTilt.outer = Math.min(axisTilt.outer + step, targetTilt.outer);
+                } else {
+                    axisTilt.outer = Math.max(axisTilt.outer - step, targetTilt.outer);
+                }
+            } else {
+                axisTilt.outer = targetTilt.outer;
+            }
+        }
+        
+        // ============================================
+        // ZOOM AND CAMERA CONTROLS
+        // ============================================
+        function calculateOptimalCameraDistance() {
+            // Calculate optimal distance based on largest frame dimension
+            // Include the vertical shafts in calculation
+            const outerSize = Math.max(
+                frameDimensions.outerLength,
+                frameDimensions.outerBreadth
+            );
+            const shaftExtension = outerSize * 0.2;  // Vertical shafts add height
+            const totalHeight = frameDimensions.outerBreadth + shaftExtension * 2;
+            const maxDim = Math.max(outerSize, totalHeight);
+            
+            // Camera distance should be ~3x the largest dimension for full view
+            return maxDim * 3.0;
+        }
+        
+        function autoFitCamera() {
+            cameraDistance = calculateOptimalCameraDistance();
+            minCameraDistance = cameraDistance * 0.25;
+            maxCameraDistance = cameraDistance * 5.0;
+            cameraAngleX = 0.45;  // Slightly lower angle
+            cameraAngleY = 0.85;
+            updateCameraPosition();
+        }
+        
+        function zoomIn() {
+            const step = cameraDistance * 0.15;  // 15% zoom
+            cameraDistance = Math.max(minCameraDistance, cameraDistance - step);
+            updateCameraPosition();
+        }
+        
+        function zoomOut() {
+            const step = cameraDistance * 0.15;  // 15% zoom
+            cameraDistance = Math.min(maxCameraDistance, cameraDistance + step);
+            updateCameraPosition();
+        }
+        
+        function resetView() {
+            autoFitCamera();
+        }
+        
+        function updateCameraPosition() {
+            if (camera) {
+                camera.position.x = cameraDistance * Math.cos(cameraAngleY) * Math.cos(cameraAngleX);
+                camera.position.y = cameraDistance * Math.sin(cameraAngleX);
+                camera.position.z = cameraDistance * Math.sin(cameraAngleY) * Math.cos(cameraAngleX);
+                camera.lookAt(0, 0, 0);
+                
+                // Update camera far plane for large scenes
+                camera.far = maxCameraDistance * 3;
+                camera.updateProjectionMatrix();
+            }
+        }
+        
+        // ============================================
+        // PAYLOAD BOX (Mounted on Inner Frame)
+        // ============================================
+        function createPayloadBox() {
+            // Remove existing payload if any
+            if (payloadMesh) {
+                if (innerFrame) innerFrame.remove(payloadMesh);
+                scene.remove(payloadMesh);
+                payloadMesh = null;
+            }
+            
+            // Create payload box (white/light gray like CAD images)
+            // 50cm x 50cm x 50cm cube centered at origin
+            const payloadGeom = new THREE.BoxGeometry(
+                payloadDimensions.x,
+                payloadDimensions.y,
+                payloadDimensions.z
+            );
+            const payloadMat = new THREE.MeshPhongMaterial({
+                color: 0xeeeeee,
+                transparent: true,
+                opacity: 0.85,
+                shininess: 60
+            });
+            payloadMesh = new THREE.Mesh(payloadGeom, payloadMat);
+            
+            // Position at absolute origin (center of system)
+            payloadMesh.position.set(0, 0, 0);
+            
+            // Add to inner frame so it rotates with the sample
+            if (innerFrame) {
+                innerFrame.add(payloadMesh);
             }
         }
         
@@ -1773,6 +2255,9 @@
             // Update sphere trajectory (Fig 3C style)
             updateSphereTrajectory(data.gravity_x, data.gravity_y, data.gravity_z);
             
+            // Update sample points gravity (for enclosure validation)
+            updateSamplePointsGravity(data.gravity_x, data.gravity_y, data.gravity_z);
+            
             // Update running state
             isRunning = data.status === 'running';
             document.getElementById('main-container').classList.toggle('running', isRunning);
@@ -1879,11 +2364,53 @@
             updateConfig();
         }
         
+        function updatePayloadDimensions() {
+            // Get payload dimensions from inputs (cm to m)
+            const px = parseFloat(document.getElementById('payload-x').value) / 100 || 0.50;
+            const py = parseFloat(document.getElementById('payload-y').value) / 100 || 0.50;
+            const pz = parseFloat(document.getElementById('payload-z').value) / 100 || 0.50;
+            const showPayload = document.getElementById('show-payload').value === 'yes';
+            
+            // Validate payload fits inside inner frame
+            if (px >= frameDimensions.innerLength || py >= frameDimensions.innerBreadth || pz >= Math.min(frameDimensions.innerLength, frameDimensions.innerBreadth)) {
+                alert(`Payload (${(px*100).toFixed(0)}×${(py*100).toFixed(0)}×${(pz*100).toFixed(0)} cm) must be smaller than inner frame (${(frameDimensions.innerLength*100).toFixed(0)}×${(frameDimensions.innerBreadth*100).toFixed(0)} cm)!`);
+                return;
+            }
+            
+            payloadDimensions = { x: px, y: py, z: pz };
+            
+            // Recreate payload box
+            if (showPayload) {
+                createPayloadBox();
+            } else {
+                if (payloadMesh) {
+                    if (innerFrame) innerFrame.remove(payloadMesh);
+                    scene.remove(payloadMesh);
+                    payloadMesh = null;
+                }
+            }
+            
+            // Auto-fit camera to new dimensions
+            autoFitCamera();
+        }
+        
         function updateFrameDimensions() {
-            const innerL = parseFloat(document.getElementById('inner-length').value) || 0.30;
-            const innerB = parseFloat(document.getElementById('inner-breadth').value) || 0.20;
-            const outerL = parseFloat(document.getElementById('outer-length').value) || 0.50;
-            const outerB = parseFloat(document.getElementById('outer-breadth').value) || 0.35;
+            // Get dimensions from inputs (values in cm, convert to m)
+            const innerL = parseFloat(document.getElementById('inner-length').value) / 100 || 0.80;
+            const innerB = parseFloat(document.getElementById('inner-breadth').value) / 100 || 0.80;
+            const outerL = parseFloat(document.getElementById('outer-length').value) / 100 || 1.50;
+            const outerB = parseFloat(document.getElementById('outer-breadth').value) / 100 || 1.50;
+            
+            // Validate: outer > inner > payload
+            const maxPayload = Math.max(payloadDimensions.x, payloadDimensions.y, payloadDimensions.z);
+            if (innerL <= maxPayload || innerB <= maxPayload) {
+                alert(`Inner frame must be larger than payload (${(maxPayload*100).toFixed(0)} cm)!`);
+                return;
+            }
+            if (outerL <= innerL || outerB <= innerB) {
+                alert('Outer frame must be larger than inner frame!');
+                return;
+            }
             
             frameDimensions = {
                 innerLength: innerL,
@@ -1894,6 +2421,9 @@
             
             // Recreate 3D frames
             createFrames();
+            
+            // Auto-fit camera to new dimensions
+            autoFitCamera();
             
             sendCommand({
                 action: 'frame_dimensions',
@@ -1908,11 +2438,11 @@
             const innerTilt = parseFloat(document.getElementById('inner-tilt').value) || 0;
             const outerTilt = parseFloat(document.getElementById('outer-tilt').value) || 0;
             
-            // Update local tilt for visualization
-            axisTilt.inner = innerTilt;
-            axisTilt.outer = outerTilt;
+            // Set TARGET tilt for smooth transition (not immediate)
+            targetTilt.inner = innerTilt;
+            targetTilt.outer = outerTilt;
             
-            // Send to server for physics
+            // Send to server for physics calculation
             sendCommand({
                 action: 'axis_inclination',
                 inner_tilt: innerTilt,
@@ -1950,6 +2480,11 @@
             initSphereVisualization();
             connectWebSocket();
             updateTimestamp();
+            
+            // Auto-fit camera to show entire RPM on load
+            setTimeout(() => {
+                autoFitCamera();
+            }, 100);
             
             // Initial connection scan after delay
             setTimeout(scanConnections, 1000);

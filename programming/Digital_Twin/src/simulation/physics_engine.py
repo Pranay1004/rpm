@@ -398,7 +398,9 @@ class RPMSimulator:
         
         # History for time-averaging
         self._gravity_history: List[Tuple[float, float]] = []
-        self._history_window = 60.0  # seconds
+        self._history_window = 60.0  # seconds - ADAPTIVE when motors stop
+        self._motor_stop_threshold = 0.01  # rad/s - below this is "stopped"
+        self._was_moving = False  # Track state transition
         
         # Random mode state
         self._next_direction_change = 0.0
@@ -489,9 +491,30 @@ class RPMSimulator:
         g = self.get_instantaneous_g()
         self._gravity_history.append((self.state.time, g))
         
-        # Prune old history
-        cutoff = self.state.time - self._history_window
-        self._gravity_history = [(t, g) for t, g in self._gravity_history if t > cutoff]
+        # **ADAPTIVE HISTORY MANAGEMENT**
+        # Detect if motors just stopped
+        is_moving = (abs(self.state.omega_inner) > self._motor_stop_threshold or 
+                     abs(self.state.omega_outer) > self._motor_stop_threshold)
+        
+        if not is_moving and self._was_moving:
+            # Motors just stopped - clear old history to show immediate 1g
+            logger.info("Motors stopped - clearing history for immediate gravity recovery")
+            self._gravity_history = [(self.state.time, g)]
+            self._was_moving = False
+        elif is_moving and not self._was_moving:
+            # Motors just started - keep some baseline
+            logger.info("Motors started - resuming 60s averaging window")
+            self._was_moving = True
+        elif is_moving:
+            # Motors moving - use full 60s window
+            self._was_moving = True
+            cutoff = self.state.time - self._history_window
+            self._gravity_history = [(t, g) for t, g in self._gravity_history if t > cutoff]
+        else:
+            # Motors stopped - maintain short-term history only (5 seconds)
+            # This shows steady 1g instead of decaying from old rotations
+            cutoff = self.state.time - 5.0
+            self._gravity_history = [(t, g) for t, g in self._gravity_history if t > cutoff]
         
         return self.state
     

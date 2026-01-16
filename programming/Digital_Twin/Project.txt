@@ -1,0 +1,368 @@
+================================================================================
+                          RPM DIGITAL TWIN - PROJECT SUMMARY
+================================================================================
+Last Updated: 16 January 2026
+Version: 3.1.0
+
+================================================================================
+                    A) TECHNOLOGY STACK & JUSTIFICATION
+================================================================================
+
+┌──────────────────────────────────────────────────────────────────────────────┐
+│ 1. FRONTEND: HTML5 + JavaScript + CSS3 (ES6+)                               │
+├──────────────────────────────────────────────────────────────────────────────┤
+│ WHY?                                                                         │
+│ - Universal accessibility (works on any browser, any OS)                     │
+│ - No installation required - just open in browser                            │
+│ - Fastest development cycle for interactive dashboards                       │
+│ - Perfect for real-time monitoring and control                               │
+│                                                                              │
+│ WHERE USED?                                                                  │
+│ - src/webapp/static/index.html                                               │
+│                                                                              │
+│ HOW USED?                                                                    │
+│ - HTML: Page structure and form controls                                     │
+│ - CSS3: Dark theme styling (SpaceX/Tesla aesthetic)                          │
+│ - JavaScript (ES6+): Event handling, WebSocket communication                 │
+│                                                                              │
+│ PURPOSE & OBJECTIVES:                                                       │
+│ - Real-time parameter control (motor speeds, frame dimensions)               │
+│ - Interactive 3D visualization                                               │
+│ - Live data display (gravity components, metrics)                            │
+│ - User-friendly dashboard for researchers                                    │
+│                                                                              │
+│ ALTERNATIVES CONSIDERED:                                                    │
+│ ✓ Vue.js / React / Angular                                                   │
+│   ✗ Overkill for this application, adds complexity                          │
+│   ✗ Requires build pipeline and transpilation                               │
+│   ✗ Slower initial load time                                                │
+│ ✓ Electron / NW.js (Desktop apps)                                            │
+│   ✗ Cannot be shipped easily to research institutions                       │
+│   ✗ Requires platform-specific binaries                                      │
+│ ✓ Qt / wxWidgets (C++ GUI frameworks)                                        │
+│   ✗ Complex build system, platform incompatibility                          │
+│   ✗ Not suitable for real-time web visualization                            │
+└──────────────────────────────────────────────────────────────────────────────┘
+
+
+┌──────────────────────────────────────────────────────────────────────────────┐
+│ 2. 3D RENDERING: Three.js (JavaScript 3D Library)                            │
+├──────────────────────────────────────────────────────────────────────────────┤
+│ WHY?                                                                         │
+│ - WebGL rendering at 50+ FPS (real-time performance)                         │
+│ - Cross-browser compatible (Chrome, Firefox, Safari, Edge)                   │
+│ - No plugins required (works on all modern browsers)                         │
+│ - Mature ecosystem with extensive documentation                              │
+│ - Excellent for scientific visualization                                     │
+│                                                                              │
+│ WHERE USED?                                                                  │
+│ - src/webapp/static/index.html (3D canvas rendering)                         │
+│ - Functions: init3D(), createFrames(), animate(), updateFrameRotations()     │
+│                                                                              │
+│ HOW USED?                                                                    │
+│ - Creates 3D scene with camera, lighting, and geometry                       │
+│ - Renders RPM structure (outer frame, inner frame, payload box)              │
+│ - Real-time rotation updates at 50Hz (matches physics loop)                  │
+│ - Provides zoom, pan, and rotation controls                                  │
+│                                                                              │
+│ PURPOSE & OBJECTIVES:                                                       │
+│ - Visual representation of RPM rotation in real-time                         │
+│ - Educational tool to understand RPM kinematics                              │
+│ - Hardware design verification                                               │
+│ - Publication-quality 3D visualization                                       │
+│                                                                              │
+│ ALTERNATIVES CONSIDERED:                                                    │
+│ ✓ Babylon.js                                                                 │
+│   ✓ Similar features to Three.js                                             │
+│   ✗ Less mature ecosystem, smaller community                                │
+│ ✓ Cesium.js                                                                  │
+│   ✗ Designed for geospatial visualization, overkill for RPM                 │
+│ ✓ WebGL (raw)                                                                │
+│   ✗ Requires 2000+ lines of boilerplate code                                │
+│   ✗ Difficult to maintain and extend                                        │
+│ ✓ Unity WebGL Export                                                         │
+│   ✗ Large file size (~50MB), long load time                                 │
+│   ✗ Overkill for simple 3D visualization                                    │
+└──────────────────────────────────────────────────────────────────────────────┘
+
+
+┌──────────────────────────────────────────────────────────────────────────────┐
+│ 3. DATA VISUALIZATION: Chart.js (JavaScript Charting Library)                │
+├──────────────────────────────────────────────────────────────────────────────┤
+│ WHY?                                                                         │
+│ - Lightweight and fast (~11KB gzipped)                                       │
+│ - Perfect for real-time streaming data                                       │
+│ - Minimal configuration required                                             │
+│ - Excellent animation and responsiveness                                     │
+│ - No external dependencies                                                   │
+│                                                                              │
+│ WHERE USED?                                                                  │
+│ - src/webapp/static/index.html (gravity charts, convergence plot)             │
+│ - Functions: initChart(), updateChart(), updateComponentsChart()             │
+│                                                                              │
+│ HOW USED?                                                                    │
+│ - Real-time line charts for gravity component evolution                      │
+│ - Convergence chart showing G* over time                                     │
+│ - Rolling window of last 500 data points                                     │
+│ - Color-coded axes (Gx=red, Gy=blue, Gz=green)                               │
+│                                                                              │
+│ PURPOSE & OBJECTIVES:                                                       │
+│ - Visualize microgravity quality convergence                                 │
+│ - Show gravity component oscillations                                        │
+│ - Track minimum/maximum G* values                                            │
+│ - Publication-ready scientific graphs                                        │
+│                                                                              │
+│ ALTERNATIVES CONSIDERED:                                                    │
+│ ✓ Plotly.js                                                                  │
+│   ✗ Much larger (~3MB), slower rendering                                    │
+│ ✓ D3.js                                                                      │
+│   ✗ Steep learning curve, excessive for simple line charts                  │
+│ ✓ ApexCharts                                                                 │
+│   ✗ Limited free features, paid features for advanced analytics             │
+│ ✓ Recharts (React-based)                                                     │
+│   ✗ Requires React framework, unnecessary dependency                        │
+└──────────────────────────────────────────────────────────────────────────────┘
+
+
+┌──────────────────────────────────────────────────────────────────────────────┐
+│ 4. BACKEND: Python 3.10+ (Programming Language)                              │
+├──────────────────────────────────────────────────────────────────────────────┤
+│ WHY?                                                                         │
+│ - Scientific computing standard (NumPy, SciPy ecosystem)                     │
+│ - Fast development cycle for physics simulations                             │
+│ - Excellent numerical processing performance                                 │
+│ - Great for prototyping and research                                         │
+│ - Easy to integrate with hardware (serial, GPIO, etc.)                       │
+│                                                                              │
+│ WHERE USED?                                                                  │
+│ - src/webapp/server.py (entire backend)                                      │
+│                                                                              │
+│ HOW USED?                                                                    │
+│ - Physics engine for gravity calculations                                    │
+│ - Rotation matrix computations                                               │
+│ - Real-time simulation loop (50Hz)                                           │
+│ - Data processing and time-averaging                                         │
+│                                                                              │
+│ PURPOSE & OBJECTIVES:                                                       │
+│ - Execute paper-accurate physics (Eq. 2)                                     │
+│ - Manage simulation state and configuration                                  │
+│ - Process hardware commands                                                  │
+│                                                                              │
+│ ALTERNATIVES CONSIDERED:                                                    │
+│ ✓ C++                                                                        │
+│   ✓ Faster execution                                                         │
+│   ✗ Much slower development, complex build system                           │
+│   ✗ Harder to iterate on physics changes                                    │
+│ ✓ C#/.NET                                                                    │
+│   ✓ Good performance                                                         │
+│   ✗ Platform dependency issues (especially on macOS)                        │
+│ ✓ Node.js/JavaScript                                                         │
+│   ✗ Floating point precision issues for physics                             │
+│   ✗ NumPy equivalent doesn't exist in JavaScript ecosystem                  │
+│ ✓ Julia                                                                      │
+│   ✓ Excellent for numerical computing                                        │
+│   ✗ Smaller ecosystem, fewer WebSocket libraries                            │
+└──────────────────────────────────────────────────────────────────────────────┘
+
+
+┌──────────────────────────────────────────────────────────────────────────────┐
+│ 5. WEB FRAMEWORK: FastAPI (Python Web Framework)                             │
+├──────────────────────────────────────────────────────────────────────────────┤
+│ WHY?                                                                         │
+│ - Modern, fast (Uvicorn ASGI server performance)                             │
+│ - Native WebSocket support (perfect for real-time streaming)                 │
+│ - Type hints and automatic API documentation                                 │
+│ - Easy to learn and deploy                                                   │
+│ - Built-in async/await support for concurrent connections                    │
+│                                                                              │
+│ WHERE USED?                                                                  │
+│ - src/webapp/server.py                                                       │
+│ - WebSocket endpoint at /ws                                                  │
+│ - HTTP endpoints for static file serving                                     │
+│                                                                              │
+│ HOW USED?                                                                    │
+│ - Creates HTTP server on port 8080                                           │
+│ - Manages WebSocket connections (ConnectionManager)                          │
+│ - Broadcasts simulation data at 20Hz to all clients                          │
+│ - Accepts control commands from frontend                                     │
+│                                                                              │
+│ PURPOSE & OBJECTIVES:                                                       │
+│ - Low-latency server for real-time data streaming                            │
+│ - Easy deployment and scaling                                                │
+│ - Robust connection management                                               │
+│                                                                              │
+│ ALTERNATIVES CONSIDERED:                                                    │
+│ ✓ Flask                                                                      │
+│   ✗ Requires separate library for WebSocket (python-socketio)               │
+│   ✗ Slower than FastAPI                                                     │
+│ ✓ Django                                                                     │
+│   ✗ Overkill for this application                                           │
+│   ✗ Heavy framework, slow startup                                           │
+│ ✓ Tornado                                                                    │
+│   ✓ Good WebSocket support                                                   │
+│   ✗ Less intuitive than FastAPI                                             │
+│ ✓ Node.js + Express.js                                                       │
+│   ✗ Not ideal for physics calculations                                      │
+└──────────────────────────────────────────────────────────────────────────────┘
+
+
+┌──────────────────────────────────────────────────────────────────────────────┐
+│ 6. COMMUNICATION PROTOCOL: WebSocket (RFC 6455)                              │
+├──────────────────────────────────────────────────────────────────────────────┤
+│ WHY?                                                                         │
+│ - Full-duplex communication (bidirectional streaming)                        │
+│ - Low latency (<10ms) compared to HTTP polling                               │
+│ - Persistent connection (no handshake overhead)                              │
+│ - Native browser support (no plugins)                                        │
+│ - Perfect for real-time control and monitoring                               │
+│                                                                              │
+│ WHERE USED?                                                                  │
+│ - Between frontend (index.html) and backend (server.py)                      │
+│ - Port 8080, endpoint /ws                                                    │
+│                                                                              │
+│ HOW USED?                                                                    │
+│ - Frontend: Send control commands (start, stop, motor speeds)                │
+│ - Backend: Send simulation data at 20Hz                                      │
+│ - JSON messages for data serialization                                       │
+│                                                                              │
+│ PURPOSE & OBJECTIVES:                                                       │
+│ - Real-time command execution on hardware                                    │
+│ - Live data visualization without lag                                        │
+│ - Smooth user experience                                                     │
+│                                                                              │
+│ ALTERNATIVES CONSIDERED:                                                    │
+│ ✓ HTTP Polling                                                               │
+│   ✗ High latency (100ms+ per poll)                                          │
+│   ✗ Server load from continuous requests                                    │
+│   ✗ Not suitable for 50Hz physics loop                                      │
+│ ✓ Server-Sent Events (SSE)                                                   │
+│   ✗ One-way communication only (no client→server)                           │
+│ ✓ Socket.IO                                                                  │
+│   ✗ WebSocket with fallback, unnecessary overhead                           │
+│   ✗ Larger client library (~5KB vs WebSocket native)                        │
+└──────────────────────────────────────────────────────────────────────────────┘
+
+
+┌──────────────────────────────────────────────────────────────────────────────┐
+│ 7. MATHEMATICS LIBRARY: NumPy (Python)                                       │
+├──────────────────────────────────────────────────────────────────────────────┤
+│ WHY?                                                                         │
+│ - Optimized matrix operations (rotation matrices)                            │
+│ - C backend for fast numerical computation                                   │
+│ - Industry standard for scientific Python                                    │
+│ - Vectorized operations avoid Python loops                                   │
+│                                                                              │
+│ WHERE USED?                                                                  │
+│ - src/webapp/server.py (MicrogravitySimulator class)                          │
+│ - Functions: calculate_gravity_vector(), compute_rotation_matrices()         │
+│                                                                              │
+│ HOW USED?                                                                    │
+│ - Create rotation matrices R_Y(ψ) and R_Z(φ)                                │
+│ - Matrix multiplication for gravity transformation                           │
+│ - Vectorized averaging for time-averaged gravity                             │
+│                                                                              │
+│ PURPOSE & OBJECTIVES:                                                       │
+│ - Efficient physics calculations at 50Hz                                     │
+│ - Accurate floating-point arithmetic                                         │
+│ - Avoid numerical precision errors                                           │
+│                                                                              │
+│ ALTERNATIVES CONSIDERED:                                                    │
+│ ✓ SciPy                                                                      │
+│   ✓ Built on NumPy                                                           │
+│   ✗ Heavier, only need basic NumPy for this application                     │
+│ ✓ Pure Python (no libraries)                                                 │
+│   ✗ 100x slower for matrix operations                                       │
+│   ✗ Unacceptable for real-time simulation                                   │
+└──────────────────────────────────────────────────────────────────────────────┘
+
+
+┌──────────────────────────────────────────────────────────────────────────────┐
+│ 8. DOCUMENTATION FORMAT: Markdown + Plain Text                               │
+├──────────────────────────────────────────────────────────────────────────────┤
+│ WHY?                                                                         │
+│ - Markdown: Renders beautifully on GitHub, GitLab, Notion                   │
+│ - Plain text: Universal, no dependencies, version-control friendly           │
+│ - Both: Readable in any text editor                                          │
+│ - No proprietary formats (future-proof)                                      │
+│                                                                              │
+│ WHERE USED?                                                                  │
+│ - README.md, README.txt, Project.md, Project.txt, etc.                       │
+│ - docs/ directory files                                                      │
+│                                                                              │
+│ PURPOSE & OBJECTIVES:                                                       │
+│ - Easy knowledge sharing with research teams                                 │
+│ - Self-documenting codebase                                                  │
+│ - Integration with version control systems                                   │
+└──────────────────────────────────────────────────────────────────────────────┘
+
+
+┌──────────────────────────────────────────────────────────────────────────────┐
+│ 9. VERSION CONTROL: Git + GitHub                                             │
+├──────────────────────────────────────────────────────────────────────────────┤
+│ WHY?                                                                         │
+│ - Industry standard for collaborative development                            │
+│ - Track all changes and maintain history                                     │
+│ - Easy rollback if issues arise                                              │
+│ - Remote backup of code                                                      │
+│                                                                              │
+│ WHERE USED?                                                                  │
+│ - .git/ directory in project root                                            │
+│ - Version tags (v3.0.0, v3.1.0, etc.)                                        │
+│                                                                              │
+│ PURPOSE & OBJECTIVES:                                                       │
+│ - Safe development workflow                                                  │
+│ - Team collaboration                                                         │
+│ - Release management                                                         │
+└──────────────────────────────────────────────────────────────────────────────┘
+
+
+================================================================================
+                    B) TECHNOLOGY DECISION MATRIX
+================================================================================
+
+Component          │ Technology     │ Rating │ Notes
+─────────────────────────────────────────────────────────────────────────────
+Frontend           │ HTML/JS/CSS3   │ ⭐⭐⭐⭐⭐ │ Perfect for real-time dashboards
+3D Rendering       │ Three.js       │ ⭐⭐⭐⭐⭐ │ Best balance of perf & ease
+Graphing           │ Chart.js       │ ⭐⭐⭐⭐⭐ │ Lightweight, real-time capable
+Backend Engine     │ Python 3.10+   │ ⭐⭐⭐⭐⭐ │ Scientific standard
+Web Framework      │ FastAPI        │ ⭐⭐⭐⭐⭐ │ Modern, fast, WebSocket native
+Math Library       │ NumPy          │ ⭐⭐⭐⭐⭐ │ Essential for physics
+Communication     │ WebSocket      │ ⭐⭐⭐⭐⭐ │ Low-latency streaming
+Documentation     │ Markdown+TXT   │ ⭐⭐⭐⭐⭐ │ Future-proof, universal
+
+
+================================================================================
+                    C) ARCHITECTURE DECISION RATIONALE
+================================================================================
+
+MONOLITHIC vs MICROSERVICES
+────────────────────────────
+Decision: Monolithic (for now)
+Rationale:
+  - Single FastAPI app serves both HTTP and WebSocket
+  - Easier to deploy on research institution servers
+  - No inter-process communication overhead
+  - Sufficient for current scale (max 10 simultaneous users)
+  - Can refactor to microservices later if needed
+
+SYNCHRONOUS vs ASYNCHRONOUS BACKEND
+─────────────────────────────────────
+Decision: Asynchronous FastAPI
+Rationale:
+  - Multiple WebSocket clients can connect simultaneously
+  - Non-blocking I/O allows 50Hz simulation without blocking connections
+  - Graceful handling of slow clients
+
+REAL-TIME DATA STREAMING APPROACH
+──────────────────────────────────
+Decision: 20Hz broadcast via WebSocket (not 50Hz)
+Rationale:
+  - 50Hz = 20ms interval (simulation physics loop)
+  - 20Hz = 50ms interval (broadcast to clients)
+  - Reduces network traffic by 60%
+  - Human perception limit ~30Hz, so 20Hz is sufficient
+  - Balances responsiveness with bandwidth efficiency
+
+
+================================================================================

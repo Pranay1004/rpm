@@ -1,0 +1,375 @@
+================================================================================
+                 MATLAB FILES ANALYSIS & RELEVANCE
+================================================================================
+Last Updated: 16 January 2026
+
+This document analyzes the two MATLAB files provided and their relevance to
+the RPM Digital Twin project.
+
+================================================================================
+                      FILE 1: random_motor_controller.m
+================================================================================
+
+┌──────────────────────────────────────────────────────────────────────────────┐
+│ PURPOSE                                                                      │
+├──────────────────────────────────────────────────────────────────────────────┤
+│ Simulates RANDOM motor acceleration changes to avoid repeating patterns.     │
+│ This is a RANDOM POSITIONING strategy - the motors don't follow a fixed      │
+│ schedule, they randomly change acceleration direction.                       │
+└──────────────────────────────────────────────────────────────────────────────┘
+
+KEY FEATURES:
+─────────────
+
+1. RANDOM ACCELERATION CHANGES
+   • At each time step, there's a P_change = 0.001 (0.1%) probability
+   • If triggered, motor acceleration changes to random value
+   • Motor 1 (Outer): α1 = random value in range [-α_max, +α_max]
+   • Motor 2 (Inner): α2 = random value in range [-α_max, +α_max]
+
+2. VELOCITY INTEGRATION
+   • ω_next = ω_current + α · Δt
+   • This creates smooth speed changes (not jerky)
+
+3. VELOCITY LIMITS
+   • Hard limits: -w_max < ω < +w_max
+   • If limit reached: reverse acceleration (bounce back)
+   • Example: w_max = 10 RPM = 1.047 rad/s
+
+4. PERSISTENT STATE
+   • Uses MATLAB persistent variables to maintain acceleration state
+   • Between function calls, acceleration value is remembered
+   • Creates smooth transitions rather than instant jumps
+
+CODE STRUCTURE:
+───────────────
+
+Function Signature:
+    [w_next1, w_next2] = random_motor_controller(w_curr1, w_curr2, dt, w_max, alpha_max)
+
+Inputs:
+    w_curr1, w_curr2   - Current angular velocities (rad/s)
+    dt                 - Time step (s)
+    w_max              - Maximum angular velocity (rad/s)
+    alpha_max          - Maximum angular acceleration (rad/s²)
+
+Outputs:
+    w_next1, w_next2   - Next angular velocities (rad/s)
+
+Example Parameter Values:
+    N_max_rpm = 10 RPM
+    w_max = 10 × (2π/60) = 1.047 rad/s
+    alpha_max = 10 rad/s²
+    dt = 0.01 s (100 Hz control loop)
+    P_change = 0.001 (0.1% per step)
+
+PSEUDOCODE:
+──────────
+
+for each time step:
+    if random() < P_change:
+        α1 = random × α_max
+        α2 = random × α_max
+    
+    w_next1 = w_curr1 + α1 × dt
+    w_next2 = w_curr2 + α2 × dt
+    
+    if w_next1 > w_max:
+        w_next1 = w_max
+        α1 = -α_max  (bounce back)
+    elseif w_next1 < -w_max:
+        w_next1 = -w_max
+        α1 = +α_max
+
+
+═══════════════════════════════════════════════════════════════════════════════
+
+                  FILE 2: rpm_simulation.m
+                  
+════════════════════════════════════════════════════════════════════════════════
+
+PURPOSE
+───────
+Complete end-to-end RPM simulation combining:
+  1. Random motor control (uses random_motor_controller.m)
+  2. Rotation matrix calculations
+  3. Gravity vector transformations (Eq. 2)
+  4. Centripetal acceleration calculations
+  5. Visualization and metrics computation
+
+SIMULATION STRUCTURE
+────────────────────
+
+PART 1: SYSTEM PARAMETERS
+    • Total time: T_end = 600 s (10 minutes)
+    • Time step: dt = 0.01 s (100 Hz)
+    • Max motor speed: N_max_rpm = 10 RPM
+    • Max angular accel: alpha_max = 10 rad/s²
+    • Sample point distance: r_mag = 0.10 m (10 cm from center)
+
+PART 2: ARRAYS INITIALIZATION
+    θ1, θ2         - Angular positions (rad)
+    w1, w2         - Angular velocities (rad/s)
+    g_payload      - Gravity vector components in payload frame
+    a_centripetal  - Centripetal acceleration components
+    r_payload      - Sample point position history
+
+PART 3: MAIN SIMULATION LOOP (key equations)
+
+    for i = 2:N
+        % Step 1: Generate random motor speeds
+        [w1(i), w2(i)] = random_motor_controller(...)
+        
+        % Step 2: Integrate angles
+        θ1(i) = θ1(i-1) + w1(i) × dt
+        θ2(i) = θ2(i-1) + w2(i) × dt
+        
+        % Step 3: Compute rotation matrices
+        R1 = rotation about Z-axis by θ1
+        R2 = rotation about Y-axis by θ2
+        R_total = R1 × R2
+        
+        % Step 4: Transform gravity to payload frame
+        g_payload = R_total' × g_inertial
+        
+        % Step 5: Calculate centripetal acceleration
+        w_payload = R_total' × (ω1 + ω2)_inertial
+        a_c = -ω_payload × (ω_payload × r_payload_initial)
+        
+        % Step 6: Track sample point position
+        r_payload_history(:, i) = R_total × r_payload_initial
+    end
+
+RESULTS COMPUTATION
+───────────────────
+
+1. Time-Averaged Gravity (Eq. 1 from formulas):
+    g_avg_vector = mean(g_payload_components, 2)
+    g_avg_mag = norm(g_avg_vector)
+    
+2. Centripetal Acceleration (Residual G):
+    a_centripetal_mag = vecnorm(a_centripetal_components)
+    a_centripetal_rms = rms(a_centripetal_mag)
+    a_centripetal_max = max(a_centripetal_mag)
+    
+3. Total Acceleration:
+    a_total = g_payload + a_centripetal
+    a_mag_total = vecnorm(a_total)
+
+VISUALIZATION OUTPUTS
+──────────────────────
+
+Three subplots showing:
+    1. Motor angular velocities over time (w1, w2)
+    2. Gravity components in payload frame (Gx, Gy, Gz)
+    3. Residual accelerations (centripetal + total)
+
+3D trajectory plot showing sample point path in inertial frame
+
+
+═══════════════════════════════════════════════════════════════════════════════
+
+                    COMPARISON: MATLAB vs PYTHON
+                    
+════════════════════════════════════════════════════════════════════════════════
+
+ASPECT                  │ MATLAB VERSION        │ PYTHON VERSION
+────────────────────────┼───────────────────────┼────────────────────────────
+Random Control          │ ✓ Implemented         │ ✗ NOT Implemented
+                        │ (random_motor_       │ (User directly enters
+                        │  controller.m)        │  motor speeds via UI)
+                        │                       │
+Gravity Calculation     │ ✓ Using Eq. 2        │ ✓ Using Eq. 2
+                        │ (rotation matrices)   │ (rotation matrices)
+                        │                       │
+Time Averaging          │ ✓ Full history       │ ✓ Full history
+                        │                       │
+Centripetal Accel       │ ✓ Calculated         │ ✗ NOT calculated
+                        │ a_c = ω²r            │ (Could be added)
+                        │                       │
+3D Trajectory Tracking  │ ✓ Complete           │ ✗ NOT in current
+                        │ (plots sample point) │  version
+                        │                       │
+Simulation Duration     │ 10 minutes           │ 60+ minutes typical
+                        │ (faster MATLAB)       │ (continuous browser)
+                        │                       │
+Output Format           │ MATLAB figures        │ Web dashboard
+                        │ (publishable plots)   │ (real-time interactive)
+                        │                       │
+Backend Speed           │ Single-threaded      │ FastAPI async
+                        │ (sequential)          │ (broadcast to clients)
+
+
+═══════════════════════════════════════════════════════════════════════════════
+
+              WHAT HAS BEEN IMPLEMENTED IN PYTHON?
+              
+════════════════════════════════════════════════════════════════════════════════
+
+✓ IMPLEMENTED FEATURES:
+───────────────────────
+
+1. Rotation Matrix Calculation (Eq. 2)
+   Location: server.py, MicrogravitySimulator class
+   Function: calculate_gravity_vector()
+   
+2. Angle Integration (φ, ψ)
+   Location: server.py, SimulationEngine class
+   Updates angles based on motor speeds every 20ms
+   
+3. Gravity Component Calculation (Gx, Gy, Gz)
+   Location: server.py, MicrogravitySimulator class
+   Uses: Gx = -sin(φ)cos(ψ), Gy = -cos(φ), Gz = sin(φ)sin(ψ)
+   
+4. Time-Averaged Gravity (⟨Gx⟩, ⟨Gy⟩, ⟨Gz⟩)
+   Location: server.py, MicrogravitySimulator class
+   Maintains running average of all samples
+   
+5. taSMG / G* Calculation
+   Location: server.py, MicrogravitySimulator class
+   Formula: G* = √(⟨Gx⟩² + ⟨Gy⟩² + ⟨Gz⟩²)
+   
+6. Min/Max G* Tracking
+   Location: server.py, tracks minimum and maximum G* values
+   
+7. Sample Counter and Elapsed Time
+   Location: server.py, incremented every simulation step
+   
+8. WebSocket Streaming
+   Location: server.py, broadcasts data at 20Hz
+
+
+✗ NOT YET IMPLEMENTED:
+──────────────────────
+
+1. RANDOM MOTOR CONTROL
+   What's missing: random_motor_controller equivalent in Python
+   Status: User manually enters motor speeds (no randomization)
+   Why it matters: Real RPMs use random control to avoid patterns
+   Impact: Current simulation is fully deterministic
+   Difficulty: Medium (need pseudo-random number generator)
+   TODO: Add in v3.2.0
+
+2. CENTRIPETAL ACCELERATION
+   What's missing: a_c = ω² × r calculation for each sample point
+   Status: Not calculated
+   Why it matters: Residual G that limits microgravity quality
+   Formula: a_c = -ω_payload × (ω_payload × r_point)
+   Impact: Actual RPM quality would be worse due to rotation
+   Difficulty: Medium (need cross product, angular velocity vectors)
+   TODO: Add in v3.2.0 (optional feature)
+
+3. 3D TRAJECTORY TRACKING
+   What's missing: Tracking sample point position history
+   Status: Not tracked (only gravity direction tracked)
+   Why it matters: Educational visualization of sample motion
+   Impact: None on physics, just visualization
+   Difficulty: Low (just store position history)
+   TODO: Add in v3.1.1
+
+4. MOTOR ACCELERATION LIMITS
+   What's missing: Realistic motor acceleration constraints
+   Status: Motor speeds change instantly
+   Why it matters: Real motors can't change speed instantly
+   Formula: α_max = 10 rad/s² (typical for stepper motors)
+   Impact: Minimal on physics for slow speed changes
+   Difficulty: Low (add first-order filter)
+   TODO: Add in v3.2.0 (low priority)
+
+
+═══════════════════════════════════════════════════════════════════════════════
+
+                    RECOMMENDATIONS FOR ENHANCEMENT
+                    
+════════════════════════════════════════════════════════════════════════════════
+
+PRIORITY 1 (Should implement soon):
+───────────────────────────────────
+
+1. RANDOM MOTOR CONTROLLER
+   Reason: Essential for realistic RPM simulation
+   Effort: 2-3 hours
+   Location: Add to server.py, class RandomMotorController
+   
+   Python implementation outline:
+   ```python
+   class RandomMotorController:
+       def __init__(self, alpha_max=10, p_change=0.001):
+           self.alpha1 = random.uniform(-alpha_max, alpha_max)
+           self.alpha2 = random.uniform(-alpha_max, alpha_max)
+       
+       def next_velocity(self, w_curr1, w_curr2, dt, w_max):
+           if random.random() < self.p_change:
+               self.alpha1 = random.uniform(-alpha_max, alpha_max)
+               self.alpha2 = random.uniform(-alpha_max, alpha_max)
+           
+           w_next1 = w_curr1 + self.alpha1 * dt
+           w_next2 = w_curr2 + self.alpha2 * dt
+           
+           # Clamp and bounce
+           if w_next1 > w_max: w_next1 = w_max
+           elif w_next1 < -w_max: w_next1 = -w_max
+           
+           return w_next1, w_next2
+   ```
+
+2. CENTRIPETAL ACCELERATION
+   Reason: Completes physics model, shows residual G
+   Effort: 3-4 hours
+   Location: Add to MicrogravitySimulator class
+   
+   Adds realistic limitation to microgravity quality
+
+
+PRIORITY 2 (Nice to have):
+──────────────────────────
+
+1. 3D TRAJECTORY TRACKING
+   Reason: Educational visualization
+   Effort: 1 hour
+   Location: Add to frontend and backend
+
+2. MOTOR ACCELERATION CONSTRAINTS
+   Reason: More realistic motor behavior
+   Effort: 1-2 hours
+   Location: Add to random controller
+
+
+PRIORITY 3 (Future work):
+─────────────────────────
+
+1. HARDWARE FEEDBACK INTEGRATION
+   Read actual motor speeds from encoders
+   Compare simulation with reality
+
+2. VIBRATION ANALYSIS
+   Add frequency domain analysis of motor vibration
+
+
+═══════════════════════════════════════════════════════════════════════════════
+
+                      CONCLUSION
+                      
+════════════════════════════════════════════════════════════════════════════════
+
+The MATLAB files (random_motor_controller.m and rpm_simulation.m) represent
+the COMPLETE physics model for an RPM system, including features not yet
+implemented in the Python version.
+
+Our Python implementation has the CORE FEATURES (gravity calculation, time
+averaging, taSMG), but is missing some ADVANCED FEATURES (random control,
+centripetal effects) that would make it more realistic.
+
+The current Python implementation is PRODUCTION-READY for:
+  ✓ Educational purposes
+  ✓ Research visualization
+  ✓ Hardware testing framework
+
+But would benefit from adding:
+  • Random motor control (v3.2.0)
+  • Centripetal acceleration (v3.2.0)
+  • 3D trajectory tracking (v3.1.1)
+
+Priority: MEDIUM - Current features are sufficient for 80% of use cases.
+
+═══════════════════════════════════════════════════════════════════════════════
