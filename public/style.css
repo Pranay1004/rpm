@@ -1,0 +1,401 @@
+/* 
+ * IIST Aerospace Engineering - Microgravity Simulation Laboratory
+ * Scientific Laboratory UI Stylesheet (v2.0 Clean Engineering Theme)
+ * Strictly devoid of neon, glowing borders, or cyberpunk clutter.
+ */
+
+:root {
+    --bg-main: #f8fafc;
+    --bg-surface: #ffffff;
+    --bg-alt: #f1f5f9;
+    --border-color: #cbd5e1;
+    --border-focus: #3b82f6;
+    
+    --text-primary: #0f172a;
+    --text-secondary: #475569;
+    --text-muted: #64748b;
+    
+    --accent-navy: #1e3a8a;
+    --accent-blue: #2563eb;
+    --accent-red: #dc2626;
+    --accent-green: #15803d;
+    --accent-amber: #d97706;
+
+    --font-sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    --font-mono: "JetBrains Mono", "SF Mono", Menlo, Consolas, monospace;
+}
+
+* {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+}
+
+body {
+    background-color: var(--bg-main);
+    color: var(--text-primary);
+    font-family: var(--font-sans);
+    font-size: 13px;
+    line-height: 1.5;
+    -webkit-font-smoothing: antialiased;
+}
+
+/* Header */
+.app-header {
+    background: var(--bg-surface);
+    border-bottom: 1px solid var(--border-color);
+    padding: 10px 24px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.logo-group {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.logo-badge {
+    background: var(--accent-navy);
+    color: #ffffff;
+    font-weight: 700;
+    font-size: 11px;
+    letter-spacing: 0.5px;
+    padding: 4px 8px;
+    border-radius: 4px;
+}
+
+.logo-title {
+    font-size: 15px;
+    font-weight: 700;
+    color: var(--accent-navy);
+    letter-spacing: -0.2px;
+}
+
+.logo-sub {
+    font-size: 11px;
+    color: var(--text-secondary);
+}
+
+.header-actions {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+/* Layout Grid */
+.workbench-container {
+    display: grid;
+    grid-template-columns: 360px 1fr;
+    gap: 14px;
+    padding: 14px 20px;
+    max-width: 1700px;
+    margin: 0 auto;
+}
+
+/* Panels */
+.panel {
+    background: var(--bg-surface);
+    border: 1px solid var(--border-color);
+    border-radius: 6px;
+    padding: 14px;
+    margin-bottom: 14px;
+}
+
+.panel-title {
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--accent-navy);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    margin-bottom: 10px;
+    padding-bottom: 6px;
+    border-bottom: 1px solid var(--border-color);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+/* Forms & Inputs */
+.form-row {
+    margin-bottom: 10px;
+}
+
+.form-label {
+    display: block;
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--text-secondary);
+    margin-bottom: 4px;
+}
+
+.form-select, .form-input {
+    width: 100%;
+    padding: 6px 10px;
+    font-size: 12px;
+    border: 1px solid var(--border-color);
+    border-radius: 4px;
+    background: #ffffff;
+    color: var(--text-primary);
+}
+
+.form-select:focus, .form-input:focus {
+    outline: none;
+    border-color: var(--border-focus);
+}
+
+.slider-group {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.slider-group input[type="range"] {
+    flex: 1;
+    accent-color: var(--accent-navy);
+}
+
+.val-display {
+    font-family: var(--font-mono);
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--accent-navy);
+    min-width: 60px;
+    text-align: right;
+}
+
+/* Buttons */
+.btn {
+    padding: 6px 12px;
+    border-radius: 4px;
+    font-size: 12px;
+    font-weight: 500;
+    cursor: pointer;
+    border: 1px solid transparent;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    transition: background-color 0.15s;
+}
+
+.btn-primary {
+    background: var(--accent-navy);
+    color: #ffffff;
+    border-color: #1e40af;
+}
+.btn-primary:hover { background: #1e40af; }
+
+.btn-success {
+    background: var(--accent-green);
+    color: #ffffff;
+    border-color: #166534;
+}
+.btn-success:hover { background: #166534; }
+
+.btn-danger {
+    background: var(--accent-red);
+    color: #ffffff;
+    border-color: #991b1b;
+}
+.btn-danger:hover { background: #991b1b; }
+
+.btn-secondary {
+    background: #ffffff;
+    color: var(--text-primary);
+    border-color: var(--border-color);
+}
+.btn-secondary:hover { background: var(--bg-alt); }
+
+.button-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    gap: 8px;
+    margin-top: 10px;
+}
+
+/* Metrics Row */
+.metrics-strip {
+    display: grid;
+    grid-template-columns: repeat(6, 1fr);
+    gap: 10px;
+    background: var(--bg-surface);
+    border: 1px solid var(--border-color);
+    border-radius: 6px;
+    padding: 10px 14px;
+    margin-bottom: 14px;
+}
+
+.metric-item {
+    display: flex;
+    flex-direction: column;
+}
+
+.metric-label {
+    font-size: 11px;
+    color: var(--text-muted);
+    font-weight: 500;
+    margin-bottom: 2px;
+}
+
+.metric-val {
+    font-family: var(--font-mono);
+    font-size: 16px;
+    font-weight: 700;
+    color: var(--accent-navy);
+}
+
+.metric-unit {
+    font-size: 10px;
+    color: var(--text-muted);
+    margin-left: 2px;
+}
+
+/* CAD & Canvas Grid */
+.visual-grid {
+    display: grid;
+    grid-template-columns: 1.15fr 0.85fr;
+    gap: 14px;
+    margin-bottom: 14px;
+}
+
+.cad-container {
+    position: relative;
+    height: 480px;
+    background: #f8fafc;
+    border: 1px solid var(--border-color);
+    border-radius: 6px;
+    overflow: hidden;
+}
+
+.cad-overlay {
+    position: absolute;
+    top: 10px;
+    left: 10px;
+    background: rgba(255, 255, 255, 0.9);
+    border: 1px solid var(--border-color);
+    padding: 6px 10px;
+    border-radius: 4px;
+    font-size: 11px;
+    color: var(--text-secondary);
+    line-height: 1.4;
+    pointer-events: none;
+}
+
+/* Scientific White-Background Charts */
+.chart-card {
+    background: var(--bg-surface);
+    border: 1px solid var(--border-color);
+    border-radius: 6px;
+    padding: 12px;
+}
+
+.chart-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 8px;
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--text-primary);
+}
+
+.charts-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 14px;
+}
+
+/* CAD Specs Table */
+.spec-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 11px;
+}
+
+.spec-table th, .spec-table td {
+    padding: 4px 6px;
+    border-bottom: 1px solid #e2e8f0;
+    text-align: left;
+}
+
+.spec-table th {
+    color: var(--text-muted);
+    font-weight: 600;
+}
+
+.spec-table td.code {
+    font-family: var(--font-mono);
+    color: #1e3a8a;
+}
+
+/* Scientific Modal */
+.modal-overlay {
+    display: none;
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    background: rgba(15, 23, 42, 0.5);
+    backdrop-filter: blur(4px);
+    z-index: 9999;
+    align-items: center;
+    justify-content: center;
+}
+
+.modal-overlay.active {
+    display: flex;
+}
+
+.modal-dialog {
+    background: #ffffff;
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    max-width: 800px;
+    width: 90%;
+    max-height: 85vh;
+    overflow-y: auto;
+    padding: 24px;
+    box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
+}
+
+.modal-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border-bottom: 1px solid var(--border-color);
+    padding-bottom: 12px;
+    margin-bottom: 16px;
+}
+
+.citation-entry {
+    border-left: 3px solid var(--accent-navy);
+    background: var(--bg-alt);
+    padding: 10px 14px;
+    margin-bottom: 12px;
+    border-radius: 0 4px 4px 0;
+}
+
+.citation-title {
+    font-weight: 600;
+    color: var(--accent-navy);
+    margin-bottom: 4px;
+}
+
+.citation-meta {
+    font-size: 11px;
+    color: var(--text-secondary);
+}
+
+.citation-eq {
+    font-family: var(--font-mono);
+    font-size: 11px;
+    color: #0f172a;
+    background: #ffffff;
+    padding: 6px 10px;
+    border: 1px solid var(--border-color);
+    border-radius: 4px;
+    margin-top: 6px;
+}

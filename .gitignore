@@ -20,6 +20,8 @@ Digital_Twin_Rust/target/
 # Python env/cache (kept only if you retain the legacy Python folder)
 **/__pycache__/
 **/.pytest_cache/
+**/.cache/
+.cache/
 *.pyc
 **/.venv/
 **/venv/

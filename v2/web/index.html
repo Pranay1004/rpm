@@ -1,0 +1,333 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>IIST RPM Digital Twin v2.0 | Microgravity Simulation Laboratory</title>
+    
+    <!-- Three.js for CAD Visualization -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    
+    <!-- Chart.js for Scientific White-Background Plots -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    
+    <!-- Scientific Laboratory Stylesheet -->
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+    <!-- =========================================================================
+         HEADER
+         ========================================================================= -->
+    <header class="app-header">
+        <div class="logo-group">
+            <span class="logo-badge">IIST</span>
+            <div>
+                <div class="logo-title">RANDOM POSITIONING MACHINE (RPM) — DIGITAL TWIN v2.0</div>
+                <div class="logo-sub">Department of Aerospace Engineering • Microgravity Simulation Laboratory</div>
+            </div>
+        </div>
+        <div class="header-actions">
+            <button class="btn btn-secondary" onclick="toggleCitationsModal(true)">
+                📚 Equations & Literature
+            </button>
+            <button class="btn btn-primary" id="btn-export-csv">
+                📥 Export Telemetry (.CSV)
+            </button>
+            <button class="btn btn-secondary" id="btn-export-plot">
+                📊 Export Plot (.PNG)
+            </button>
+        </div>
+    </header>
+
+    <!-- =========================================================================
+         MAIN WORKBENCH
+         ========================================================================= -->
+    <div class="workbench-container">
+        
+        <!-- LEFT COLUMN: CONTROLS & MECHANICAL SPECIFICATIONS -->
+        <aside class="workbench-controls">
+            
+            <!-- Operation Mode Selection -->
+            <div class="panel">
+                <div class="panel-title">
+                    <span>Trajectory Control</span>
+                    <span style="font-size: 10px; color: var(--accent-green); font-weight: 700;">● ACTIVE</span>
+                </div>
+                <div class="form-row">
+                    <label class="form-label">Simulation Mode</label>
+                    <select class="form-select" id="mode-select">
+                        <option value="clinostat_optimal">Clinostat Optimal S² Ergodic (Kim et al. 2026, γ = 1.146)</option>
+                        <option value="clinostat_3d">Clinostat 3D (Constant 2.0 / 2.0 RPM)</option>
+                        <option value="rpm_stochastic">Stochastic RPM Mode A (Pica et al. 2026 Reversals)</option>
+                    </select>
+                </div>
+                <div id="mode-description" style="font-size: 11px; color: var(--text-secondary); line-height: 1.4; padding: 6px 8px; background: var(--bg-alt); border-radius: 4px; margin-top: 6px;">
+                    <strong>Kim et al. (2026):</strong> Non-harmonic velocity ratio γ = 1.146 avoiding polar trapping.
+                </div>
+            </div>
+
+            <!-- Motor & Geometry Adjustments -->
+            <div class="panel">
+                <div class="panel-title">Drive Speeds & Payload Geometry</div>
+                
+                <div class="form-row">
+                    <div style="display: flex; justify-content: space-between;">
+                        <label class="form-label">Inner Gimbal Speed (φ)</label>
+                        <span class="val-display" id="inner-rpm-val">2.0 RPM</span>
+                    </div>
+                    <div class="slider-group">
+                        <input type="range" id="inner-rpm-slider" min="0.0" max="20.0" step="0.1" value="2.0">
+                    </div>
+                </div>
+
+                <div class="form-row">
+                    <div style="display: flex; justify-content: space-between;">
+                        <label class="form-label">Outer Gimbal Speed (ψ)</label>
+                        <span class="val-display" id="outer-rpm-val">2.3 RPM</span>
+                    </div>
+                    <div class="slider-group">
+                        <input type="range" id="outer-rpm-slider" min="0.0" max="20.0" step="0.1" value="2.292">
+                    </div>
+                </div>
+
+                <div class="form-row">
+                    <div style="display: flex; justify-content: space-between;">
+                        <label class="form-label">Sample Chamber Radius (r)</label>
+                        <span class="val-display" id="chamber-radius-val">6.0 cm</span>
+                    </div>
+                    <div class="slider-group">
+                        <input type="range" id="chamber-radius-slider" min="1.0" max="15.0" step="0.5" value="6.0">
+                    </div>
+                </div>
+
+                <div class="button-grid">
+                    <button class="btn btn-success" id="btn-start">▶ START</button>
+                    <button class="btn btn-danger" id="btn-stop">⏹ STOP</button>
+                    <button class="btn btn-secondary" id="btn-reset">↺ RESET</button>
+                </div>
+            </div>
+
+            <!-- Actual CAD Specifications Table (from Final_Drawing.pdf) -->
+            <div class="panel">
+                <div class="panel-title">CAD Specifications (Final_Drawing.pdf)</div>
+                <table class="spec-table">
+                    <tbody>
+                        <tr>
+                            <th>Base Plate (Part 1)</th>
+                            <td class="code">1200 × 900 × 45 mm (Steel)</td>
+                        </tr>
+                        <tr>
+                            <th>Side Supports (Part 2)</th>
+                            <td class="code">2x A-Frames H=491 mm (25.4 mm)</td>
+                        </tr>
+                        <tr>
+                            <th>Outer Frame (Part 5)</th>
+                            <td class="code">500 × 500 × 50.8 mm (Al6061)</td>
+                        </tr>
+                        <tr>
+                            <th>Inner Frame (Part 6)</th>
+                            <td class="code">350 × 350 × 50.8 mm (Al6061)</td>
+                        </tr>
+                        <tr>
+                            <th>Payload Box (Part 3)</th>
+                            <td class="code">200 × 200 mm (120 mm Cavity)</td>
+                        </tr>
+                        <tr>
+                            <th>Shafts (Parts 4 & 7)</th>
+                            <td class="code">Ø20 mm Precision Steel</td>
+                        </tr>
+                        <tr>
+                            <th>Outer Motor (Slide 11)</th>
+                            <td class="code">NEMA 34 Stepper (I_zz = 0.614)</td>
+                        </tr>
+                        <tr>
+                            <th>Inner Motor (Slide 11)</th>
+                            <td class="code">NEMA 23 Stepper (I_yy = 0.172)</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+
+        </aside>
+
+        <!-- RIGHT COLUMN: CAD VIEW & SCIENTIFIC PLOTS -->
+        <main class="workbench-main">
+            
+            <!-- Metrics Summary Bar -->
+            <div class="metrics-strip">
+                <div class="metric-item">
+                    <span class="metric-label">taSMG &lt;g&gt; (Cumulative)</span>
+                    <span class="metric-val" id="metric-tasmg">1.0000 g</span>
+                </div>
+                <div class="metric-item">
+                    <span class="metric-label">Instantaneous Accel</span>
+                    <span class="metric-val" id="metric-inst-g">1.000 g</span>
+                </div>
+                <div class="metric-item">
+                    <span class="metric-label">Centrifugal Bias (Edge)</span>
+                    <span class="metric-val" id="metric-centrifugal">0.0000 g</span>
+                </div>
+                <div class="metric-item">
+                    <span class="metric-label">Safe Radius (10⁻³g)</span>
+                    <span class="metric-val" id="metric-safe-radius">22.3 cm</span>
+                </div>
+                <div class="metric-item">
+                    <span class="metric-label">Wall Shear Stress</span>
+                    <span class="metric-val" id="metric-shear">0.00 mPa</span>
+                </div>
+                <div class="metric-item">
+                    <span class="metric-label">Logged Timesteps</span>
+                    <span class="metric-val" id="metric-samples">0</span>
+                </div>
+            </div>
+
+            <!-- Upper Grid: 3D CAD Assembly & Live State -->
+            <div class="visual-grid">
+                
+                <!-- CAD Assembly View -->
+                <div class="cad-container" id="cad-canvas-container">
+                    <div class="cad-overlay">
+                        <div><strong>CAD Assembly (1:1 Metric Scale)</strong></div>
+                        <div>Outer Frame: 500 mm Al6061 • Inner Frame: 350 mm Al6061</div>
+                        <div>Payload Holder: 200 mm Polycarbonate (120 mm Chamber)</div>
+                        <div style="margin-top: 4px; font-size: 10px; color: var(--text-muted);">Orbit: Left Drag • Zoom: Scroll Wheel</div>
+                    </div>
+                </div>
+
+                <!-- Instantaneous Gimbal Angles & Vector Components -->
+                <div class="panel" style="margin-bottom: 0;">
+                    <div class="panel-title">Gimbal Telemetry & Vectors</div>
+                    
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 12px;">
+                        <div style="padding: 8px; background: var(--bg-alt); border-radius: 4px;">
+                            <div style="font-size: 10px; color: var(--text-muted); font-weight: 600;">INNER ANGLE (φ)</div>
+                            <div style="font-family: var(--font-mono); font-size: 18px; font-weight: 700; color: #1e3a8a;" id="display-phi">0.0°</div>
+                        </div>
+                        <div style="padding: 8px; background: var(--bg-alt); border-radius: 4px;">
+                            <div style="font-size: 10px; color: var(--text-muted); font-weight: 600;">OUTER ANGLE (ψ)</div>
+                            <div style="font-family: var(--font-mono); font-size: 18px; font-weight: 700; color: #1e3a8a;" id="display-psi">0.0°</div>
+                        </div>
+                    </div>
+
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 12px;">
+                        <div style="padding: 8px; background: var(--bg-alt); border-radius: 4px;">
+                            <div style="font-size: 10px; color: var(--text-muted); font-weight: 600;">INNER VELOCITY</div>
+                            <div style="font-family: var(--font-mono); font-size: 14px; font-weight: 600; color: #334155;" id="display-omega-phi">2.00 RPM</div>
+                        </div>
+                        <div style="padding: 8px; background: var(--bg-alt); border-radius: 4px;">
+                            <div style="font-size: 10px; color: var(--text-muted); font-weight: 600;">OUTER VELOCITY</div>
+                            <div style="font-family: var(--font-mono); font-size: 14px; font-weight: 600; color: #334155;" id="display-omega-psi">2.29 RPM</div>
+                        </div>
+                    </div>
+
+                    <div style="font-size: 11px; color: var(--text-secondary); line-height: 1.5; padding: 8px; border-left: 3px solid var(--accent-navy); background: #f8fafc;">
+                        <strong>Centrifugal Threshold Compliance:</strong> When rotational speed is 2.0 RPM, residual centrifugal acceleration remains strictly below the international 10⁻³ g biological microgravity boundary up to <strong>22.3 cm</strong> from center (Wadhwa et al. 2026 Eq 5).
+                    </div>
+                </div>
+
+            </div>
+
+            <!-- Lower Grid: Publication-Quality Scientific Charts -->
+            <div class="charts-row">
+                
+                <!-- Chart 1: Time Series of Gx, Gy, Gz & taSMG (Pure White Background) -->
+                <div class="chart-card">
+                    <div class="chart-header">
+                        <span>Gravity Acceleration Time Series (Yotov et al. 2022)</span>
+                        <span style="font-family: var(--font-mono); font-size: 10px; color: #64748b;">50 Hz Discrete Step</span>
+                    </div>
+                    <div style="position: relative; height: 240px; background: #ffffff;">
+                        <canvas id="timeseries-canvas"></canvas>
+                    </div>
+                </div>
+
+                <!-- Chart 2: 1D Navier-Stokes Fluid Velocity Profile -->
+                <div class="chart-card">
+                    <div class="chart-header">
+                        <span>1D Navier-Stokes Momentum Diffusion u_θ(r) (Hasenstein & van Loon 2015)</span>
+                        <span style="font-family: var(--font-mono); font-size: 10px; color: #64748b;">Water 20°C (ν=1.004×10⁻⁶ m²/s)</span>
+                    </div>
+                    <div style="position: relative; height: 240px; background: #ffffff;">
+                        <canvas id="fdm-canvas"></canvas>
+                    </div>
+                </div>
+
+            </div>
+
+        </main>
+
+    </div>
+
+    <!-- =========================================================================
+         ACADEMIC CITATIONS & MATHEMATICAL FORMULATIONS MODAL
+         ========================================================================= -->
+    <div class="modal-overlay" id="citations-modal" onclick="toggleCitationsModal(false)">
+        <div class="modal-dialog" onclick="event.stopPropagation()">
+            <div class="modal-header">
+                <div>
+                    <h3 style="font-size: 15px; color: var(--accent-navy); margin-bottom: 2px;">Peer-Reviewed Formulations & Literature Mapping</h3>
+                    <div style="font-size: 11px; color: var(--text-secondary);">Indian Institute of Space Science and Technology (IIST) • Microgravity Simulation Laboratory</div>
+                </div>
+                <button class="btn btn-secondary" onclick="toggleCitationsModal(false)">✕</button>
+            </div>
+
+            <!-- Wadhwa et al. -->
+            <div class="citation-entry">
+                <div class="citation-title">1. Volumetric Spatial Field & Critical Radius Threshold</div>
+                <div class="citation-meta">Wadhwa, Bruun, Petersen, & Petersen • <strong>Scientific Reports (Nature Portfolio)</strong> 16, 39316 (2026) • DOI: 10.1038/s41598-026-39316-7</div>
+                <div class="citation-eq">
+                    a_total(r, t) = g(t) - ω(t) × (ω(t) × r) - α(t) × r<br>
+                    r_safe = (10⁻³ · g₀) / ||ω||²
+                </div>
+            </div>
+
+            <!-- Kim et al. -->
+            <div class="citation-entry">
+                <div class="citation-title">2. S² Spherical Ergodicity & Pole Avoidance</div>
+                <div class="citation-meta">Kim, Park, & Kim • <strong>npj Microgravity (Nature Portfolio / NASA-supported)</strong> 12, 570 (2026) • DOI: 10.1038/s41526-026-00570-8</div>
+                <div class="citation-eq">
+                    γ_opt = ω_φ / ω_ψ = 1.146 (e.g. 2.000 / 2.292 RPM)
+                </div>
+            </div>
+
+            <!-- Pica et al. -->
+            <div class="citation-entry">
+                <div class="citation-title">3. Mode A Stochastic Direction Reversal</div>
+                <div class="citation-meta">Pica, Uras, Porco, Manca, Pantaleo, & Della Croce • <strong>PLOS ONE</strong> 21(6), e0351320 (2026) • DOI: 10.1371/journal.pone.0351320</div>
+                <div class="citation-eq">
+                    T_switch ∈ [20.0, 45.0] s • ω ∈ [0.80, 1.00] · ω_max
+                </div>
+            </div>
+
+            <!-- Yotov et al. -->
+            <div class="citation-entry">
+                <div class="citation-title">4. Gimbal Kinematics & taSMG Formulations</div>
+                <div class="citation-meta">Yotov, Marovska, Turiyski, & Ivanov • <strong>Inventions</strong> 7(3), 85 (2022) • DOI: 10.3390/inventions7030085</div>
+                <div class="citation-eq">
+                    ē_g(t) = -sin(φ)cos(ψ)ē_x + sin(φ)sin(ψ)ē_y + cos(φ)ē_z<br>
+                    taSMG = || (1/T) ∫₀ᵀ ē_g(t) dt ||
+                </div>
+            </div>
+
+            <!-- Hasenstein & van Loon -->
+            <div class="citation-entry">
+                <div class="citation-title">5. 1D Navier-Stokes Fluid Momentum Diffusion & Dynamic Shear Stress</div>
+                <div class="citation-meta">Hasenstein & van Loon • <strong>Generation and Applications of Extra-Terrestrial Environments on Earth</strong>, Ch. 14, pp. 147–160 (2015)</div>
+                <div class="citation-eq">
+                    ∂u_θ/∂t = ν · [ ∂²u_θ/∂r² + (1/r)·(∂u_θ/∂r) - u_θ/r² ]<br>
+                    τ_w = μ · |∂u_θ/∂r - u_θ/r|_{r=R} (mPa)
+                </div>
+            </div>
+
+            <div style="text-align: right; margin-top: 14px;">
+                <button class="btn btn-primary" onclick="toggleCitationsModal(false)">Close</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Application Script -->
+    <script src="cad_model.js"></script>
+    <script src="app.js"></script>
+</body>
+</html>
