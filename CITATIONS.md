@@ -3,7 +3,7 @@
 **Indian Institute of Space Science and Technology (IIST)**  
 **Department of Aerospace Engineering — Microgravity Simulation Laboratory**  
 **Digital Twin Architecture for Random Positioning Machine (RPM)**  
-**Live Portal:** [https://rpm.iist.vercel.app](https://rpm.iist.vercel.app)  
+**Live Portal:** [https://rpmiist.vercel.app](https://rpmiist.vercel.app)  
 **Source Repository:** [https://github.com/Pranay1004/rpm](https://github.com/Pranay1004/rpm)
 
 ---

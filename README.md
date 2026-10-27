@@ -1,13 +1,13 @@
 # IIST Random Positioning Machine (RPM) Digital Twin
 
-[![Vercel Deployment](https://img.shields.io/badge/Vercel-Deployed-00e5ff?style=for-the-badge&logo=vercel&logoColor=white)](https://rpm.iist.vercel.app)
+[![Vercel Deployment](https://img.shields.io/badge/Vercel-Deployed-00e5ff?style=for-the-badge&logo=vercel&logoColor=white)](https://rpmiist.vercel.app)
 [![License: Academic](https://img.shields.io/badge/License-IIST_Academic-bf5af2?style=for-the-badge)](https://github.com/Pranay1004/rpm)
 [![Physics: 50Hz Real--Time FDM](https://img.shields.io/badge/Physics-50Hz_FDM_Diffusion-00ff9d?style=for-the-badge)](file:///Users/pandeyji/Desktop/IIST/Microgravity/RPM/CITATIONS.md)
 [![Web Serial API](https://img.shields.io/badge/Hardware-Web_Serial_Sync-ffd60a?style=for-the-badge)](file:///Users/pandeyji/Desktop/IIST/Microgravity/RPM/index.html)
 
 **Indian Institute of Space Science and Technology (IIST)**  
 **Department of Aerospace Engineering — Microgravity Simulation Laboratory**  
-**Live Digital Twin Web Application:** [https://rpm.iist.vercel.app](https://rpm.iist.vercel.app)  
+**Live Digital Twin Web Application:** [https://rpmiist.vercel.app](https://rpmiist.vercel.app)  
 **Vercel Project:** [https://vercel.com/pranays-projects-d8ef7548/rpm.iist/2hG5mKW31BneqpxmRhQ258ipqvf9](https://vercel.com/pranays-projects-d8ef7548/rpm.iist/2hG5mKW31BneqpxmRhQ258ipqvf9)  
 **Source Repository:** [https://github.com/Pranay1004/rpm](https://github.com/Pranay1004/rpm)
 
@@ -49,7 +49,7 @@ For BibTeX entries and full mathematical derivations, see [CITATIONS.md](file://
             v                                           v
 +-------------------------------+           +-------------------------------+
 |     CLOUD RUNTIME (VERCEL)    |           |    LOCAL PHYSICAL WORKBENCH   |
-|   https://rpm.iist.vercel.app |           |     Python 3 + Hardware Rig   |
+|   https://rpmiist.vercel.app |           |     Python 3 + Hardware Rig   |
 +-------------------------------+           +-------------------------------+
 | • In-Browser 50 Hz Physics    |           | • FastAPI Asynchronous Server |
 | • 1D Navier-Stokes FDM Solver |           | • Real-Time FDM Fluid Solver  |
@@ -81,7 +81,7 @@ For BibTeX entries and full mathematical derivations, see [CITATIONS.md](file://
 
 ### Option A: Cloud Web Application (Zero Installation)
 Visit the live deployment directly in any modern browser:
-[https://rpm.iist.vercel.app](https://rpm.iist.vercel.app)
+[https://rpmiist.vercel.app](https://rpmiist.vercel.app)
 
 * Click **`🔌 Connect HW (WebSerial)`** to link your physical microcontroller over USB.
 * Click **`📚 Citations & Equations`** to inspect the mathematical provenance modal.
@@ -138,4 +138,4 @@ Department of Aerospace Engineering
 Valiamala, Thiruvananthapuram, Kerala 695547, India  
 
 Lead Developer: Pranay ([@Pranay1004](https://github.com/Pranay1004))  
-Platform URL: [https://rpm.iist.vercel.app](https://rpm.iist.vercel.app)
+Platform URL: [https://rpmiist.vercel.app](https://rpmiist.vercel.app)
