@@ -381,6 +381,12 @@ class RPMScientificApp {
        SCIENTIFIC CHARTS (Chart.js)
        ========================================================================= */
     initPlots() {
+        if (typeof Chart === 'undefined') {
+            console.warn('Chart.js not yet loaded, deferring initPlots');
+            setTimeout(() => this.initPlots(), 500);
+            return;
+        }
+
         // Chart 1: Time Series of Gx, Gy, Gz & taSMG (White Background)
         const tsCtx = document.getElementById('timeseries-canvas');
         if (tsCtx) {
