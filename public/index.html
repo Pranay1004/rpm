@@ -36,22 +36,25 @@
         <!-- Version Selector -->
         <div class="version-toggle-group">
             <a href="/v1/" class="ver-btn" title="Open Legacy v1.0 Interface">
-                <span>🏛️ v1.0 Legacy</span>
+                <span>v1.0 Legacy</span>
             </a>
             <span class="ver-btn active" title="Current CAD & Scientific Twin">
-                <span>🔬 v2.0 Scientific Twin</span>
+                <span>v2.0 Scientific Twin</span>
             </span>
         </div>
 
         <div class="header-actions">
             <button class="btn btn-secondary" onclick="toggleCitationsModal(true)">
-                📚 Equations & Literature
+                Equations & Literature
+            </button>
+            <button class="btn btn-secondary" onclick="toggleSchematicModal(true)">
+                Wiring & Architecture Schema
             </button>
             <button class="btn btn-primary" id="btn-export-csv">
-                📥 Export Telemetry (.CSV)
+                Export Telemetry (CSV)
             </button>
             <button class="btn btn-secondary" id="btn-export-plot">
-                📊 Export Plot (.PNG)
+                Export Plot (PNG)
             </button>
         </div>
     </header>
@@ -66,10 +69,10 @@
             
             <!-- Navigation Subtabs -->
             <nav class="subtabs-nav">
-                <button class="subtab-btn active" onclick="switchSidebarTab('tab-kinematics')">🎯 Trajectory</button>
-                <button class="subtab-btn" onclick="switchSidebarTab('tab-enclosure')">📦 Enclosure</button>
-                <button class="subtab-btn" onclick="switchSidebarTab('tab-dimensions')">📐 CAD Specs</button>
-                <button class="subtab-btn" onclick="switchSidebarTab('tab-hardware')">🔌 Hardware</button>
+                <button class="subtab-btn active" onclick="switchSidebarTab('tab-kinematics')">Trajectory</button>
+                <button class="subtab-btn" onclick="switchSidebarTab('tab-enclosure')">Enclosure</button>
+                <button class="subtab-btn" onclick="switchSidebarTab('tab-dimensions')">CAD & MOI Specs</button>
+                <button class="subtab-btn" onclick="switchSidebarTab('tab-hardware')">Wiring & DAQ</button>
             </nav>
 
             <!-- =================================================================
@@ -85,10 +88,10 @@
                     </div>
                     <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 6px; margin-top: 8px;">
                         <button class="btn btn-primary" id="domain-mfg-btn" style="font-size: 11px; padding: 6px 4px;" onclick="setExperimentDomain('manufacturing')">
-                            ⚙️ Space Mfg (20cm)
+                            Space Mfg (200mm)
                         </button>
                         <button class="btn btn-secondary" id="domain-bio-btn" style="font-size: 11px; padding: 6px 4px;" onclick="setExperimentDomain('biology')">
-                            🔬 Biology (2.2cm)
+                            Biology (22mm)
                         </button>
                     </div>
                     <div id="domain-description" style="font-size: 10.5px; color: var(--text-secondary); line-height: 1.35; margin-top: 8px; padding: 6px; background: #ffffff; border: 1px solid var(--border-color); border-radius: 4px;">
@@ -100,7 +103,7 @@
                 <div class="panel">
                     <div class="panel-title">
                         <span>Trajectory Control</span>
-                        <span style="font-size: 10px; color: var(--accent-green); font-weight: 700;">● ACTIVE</span>
+                        <span id="traj-active-badge" style="font-size: 10px; color: var(--accent-green); font-weight: 700;">[ACTIVE]</span>
                     </div>
                     <div class="form-row">
                         <label class="form-label">Simulation Mode</label>
@@ -122,31 +125,31 @@
                     <div class="form-row">
                         <div style="display: flex; justify-content: space-between;">
                             <label class="form-label">Inner Gimbal Speed (φ)</label>
-                            <span class="val-display" id="inner-rpm-val">2.0 RPM</span>
+                            <span class="val-display" id="inner-rpm-val">0.5 RPM</span>
                         </div>
                         <div class="slider-group">
-                            <input type="range" id="inner-rpm-slider" min="0.0" max="20.0" step="0.1" value="2.0">
+                            <input type="range" id="inner-rpm-slider" min="0.0" max="20.0" step="0.1" value="0.5">
                         </div>
                     </div>
 
                     <div class="form-row">
                         <div style="display: flex; justify-content: space-between;">
                             <label class="form-label">Outer Gimbal Speed (ψ)</label>
-                            <span class="val-display" id="outer-rpm-val">2.3 RPM</span>
+                            <span class="val-display" id="outer-rpm-val">0.6 RPM</span>
                         </div>
                         <div class="slider-group">
-                            <input type="range" id="outer-rpm-slider" min="0.0" max="20.0" step="0.1" value="2.292">
+                            <input type="range" id="outer-rpm-slider" min="0.0" max="20.0" step="0.1" value="0.573">
                         </div>
                     </div>
 
                     <div class="button-grid">
-                        <button class="btn btn-success" id="btn-start">▶ START</button>
-                        <button class="btn btn-danger" id="btn-stop">⏹ STOP</button>
-                        <button class="btn btn-secondary" id="btn-reset">↺ RESET</button>
+                        <button class="btn btn-success" id="btn-start">START</button>
+                        <button class="btn btn-danger" id="btn-stop">STOP</button>
+                        <button class="btn btn-secondary" id="btn-reset">RESET</button>
                     </div>
                 </div>
 
-                <!-- Axis Inclination (Tilt Angles) - From v1 -->
+                <!-- Axis Inclination (Tilt Angles) -->
                 <div class="panel">
                     <div class="panel-title">Axis Inclination (Tilts)</div>
                     <div class="dimension-grid" style="grid-template-columns: 1fr 1fr;">
@@ -159,12 +162,9 @@
                             <input type="number" class="form-input" id="outer-tilt-input" value="0" min="-45" max="45" step="1">
                         </div>
                     </div>
-                    <div style="font-size: 10px; color: var(--text-muted); margin-top: 4px;">
-                        Tilt axes from orthogonal perpendicular (Kim et al. 2026 Eq 2).
-                    </div>
                     <div style="margin-top: 8px;">
                         <button class="btn btn-secondary" style="width: 100%;" onclick="applyAxisInclinations()">
-                            ⚙️ Apply Axis Tilts
+                            Apply Axis Tilts
                         </button>
                     </div>
                 </div>
@@ -254,7 +254,7 @@
                         Add probe points inside chamber to track localized microgravity & centrifugal field.
                     </div>
                     <button class="btn btn-primary" style="width: 100%;" onclick="addSamplePoint()">
-                        ➕ Add Tracked Probe Point
+                        Add Tracked Probe Point
                     </button>
 
                     <!-- Dynamic Tracked Points List Table -->
@@ -279,98 +279,119 @@
             </div>
 
             <!-- =================================================================
-                 SUBTAB 3: PAYLOAD & CAD DIMENSIONS (From v1 + Final_Drawing.pdf)
+                 SUBTAB 3: CAD & MASS MOMENT OF INERTIA (MOI) CALCULATOR
                  ================================================================= -->
             <div id="tab-dimensions" class="subtab-content">
                 
-                <!-- Payload Dimensions (from v1) -->
+                <!-- Parametric Frame Dimensions & Materials Setup -->
                 <div class="panel">
-                    <div class="panel-title">Payload Dimensions (cm)</div>
+                    <div class="panel-title">Custom Frame & Mechanics Setup</div>
+                    
+                    <div style="font-size: 10.5px; font-weight: 700; color: var(--accent-navy); margin-bottom: 4px;">Outer Gimbal Geometry</div>
                     <div class="dimension-grid">
                         <div>
-                            <label class="form-label">Width (X)</label>
-                            <input type="number" class="form-input" id="payload-w" value="20" min="5" max="30" step="1">
+                            <label class="form-label">Size (mm)</label>
+                            <input type="number" class="form-input" id="outer-size-input" value="500" min="300" max="1000" step="10">
                         </div>
                         <div>
-                            <label class="form-label">Height (Y)</label>
-                            <input type="number" class="form-input" id="payload-h" value="20" min="5" max="30" step="1">
+                            <label class="form-label">Section (mm)</label>
+                            <input type="number" class="form-input" id="outer-section-input" value="50.8" min="20" max="100" step="1">
                         </div>
                         <div>
-                            <label class="form-label">Depth (Z)</label>
-                            <input type="number" class="form-input" id="payload-d" value="20" min="5" max="30" step="1">
+                            <label class="form-label">Wall (mm)</label>
+                            <input type="number" class="form-input" id="outer-wall-input" value="3.2" min="1" max="15" step="0.5">
                         </div>
                     </div>
-                    <div class="form-row">
-                        <label class="form-label">Show Payload Holder</label>
-                        <select class="form-select" id="show-payload">
-                            <option value="yes">Yes (Optical Polycarbonate)</option>
-                            <option value="no">No</option>
+                    <div class="form-row" style="margin-top: 6px;">
+                        <label class="form-label">Outer Material</label>
+                        <select class="form-select" id="outer-mat-select">
+                            <option value="Al6061">Al6061-T6 (Density: 2700 kg/m³)</option>
+                            <option value="Steel">IS2062 Structural Steel (7850 kg/m³)</option>
                         </select>
                     </div>
-                    <div style="font-size: 10px; color: var(--text-muted); margin-bottom: 8px;">
-                        Payload must fit inside inner gimbal opening (max 25.0 cm).
-                    </div>
-                    <button class="btn btn-secondary" style="width: 100%;" onclick="updatePayloadDimensions()">
-                        Apply Payload Dimensions
-                    </button>
-                </div>
 
-                <!-- Frame Dimensions (from v1) -->
-                <div class="panel">
-                    <div class="panel-title">Frame Clear Openings (cm)</div>
-                    <div class="dimension-grid" style="grid-template-columns: 1fr 1fr;">
+                    <div style="font-size: 10.5px; font-weight: 700; color: var(--accent-navy); margin-top: 10px; margin-bottom: 4px;">Inner Gimbal Geometry</div>
+                    <div class="dimension-grid">
                         <div>
-                            <label class="form-label">Inner Frame</label>
-                            <input type="number" class="form-input" id="frame-inner-dim" value="25.0" min="15" max="40" step="0.5">
+                            <label class="form-label">Size (mm)</label>
+                            <input type="number" class="form-input" id="inner-size-input" value="350" min="200" max="800" step="10">
                         </div>
                         <div>
-                            <label class="form-label">Outer Frame</label>
-                            <input type="number" class="form-input" id="frame-outer-dim" value="40.0" min="25" max="60" step="0.5">
+                            <label class="form-label">Section (mm)</label>
+                            <input type="number" class="form-input" id="inner-section-input" value="50.8" min="20" max="80" step="1">
+                        </div>
+                        <div>
+                            <label class="form-label">Wall (mm)</label>
+                            <input type="number" class="form-input" id="inner-wall-input" value="3.2" min="1" max="10" step="0.5">
                         </div>
                     </div>
-                    <div style="margin-top: 8px;">
-                        <button class="btn btn-secondary" style="width: 100%;" onclick="updateFrameClearances()">
-                            Apply Clearances
+                    <div class="form-row" style="margin-top: 6px;">
+                        <label class="form-label">Inner Material</label>
+                        <select class="form-select" id="inner-mat-select">
+                            <option value="Al6061">Al6061-T6 (Density: 2700 kg/m³)</option>
+                            <option value="Steel">IS2062 Structural Steel (7850 kg/m³)</option>
+                        </select>
+                    </div>
+
+                    <div style="font-size: 10.5px; font-weight: 700; color: var(--accent-navy); margin-top: 10px; margin-bottom: 4px;">Payload Holder & C.G. Offset</div>
+                    <div class="dimension-grid">
+                        <div>
+                            <label class="form-label">Cube (mm)</label>
+                            <input type="number" class="form-input" id="payload-dim-input" value="200" min="50" max="300" step="5">
+                        </div>
+                        <div>
+                            <label class="form-label">Mass (kg)</label>
+                            <input type="number" class="form-input" id="payload-mass-input" value="3.5" min="0.1" max="25" step="0.1">
+                        </div>
+                        <div>
+                            <label class="form-label">C.G. Offset (mm)</label>
+                            <input type="number" class="form-input" id="payload-offset-input" value="5.0" min="0" max="50" step="0.5">
+                        </div>
+                    </div>
+
+                    <div style="margin-top: 12px;">
+                        <button class="btn btn-primary" style="width: 100%;" onclick="applyCustomMechanicsParameters()">
+                            Calculate MOI & Rescale CAD Model
                         </button>
                     </div>
                 </div>
 
-                <!-- Actual CAD Specifications Table (from Final_Drawing.pdf) -->
+                <!-- Proven MOI & Dynamic Torque Physics Readout -->
                 <div class="panel">
-                    <div class="panel-title">CAD Specifications (Final_Drawing.pdf)</div>
+                    <div class="panel-title">Calculated MOI & Dynamic Torque (Proven Mechanics)</div>
                     <table class="spec-table">
                         <tbody>
                             <tr>
-                                <th>Base Plate (Part 1)</th>
-                                <td class="code">1200 × 900 × 45 mm (Steel)</td>
+                                <th>Outer Frame Mass</th>
+                                <td class="code" id="calc-mass-outer">4.85 kg</td>
                             </tr>
                             <tr>
-                                <th>Side Supports (Part 2)</th>
-                                <td class="code">2x A-Frames H=491 mm (25.4 mm)</td>
+                                <th>Inner Frame Mass</th>
+                                <td class="code" id="calc-mass-inner">3.12 kg</td>
                             </tr>
                             <tr>
-                                <th>Outer Frame (Part 5)</th>
-                                <td class="code">500 × 500 × 50.8 mm (Al6061)</td>
+                                <th>Inner Gimbal MOI (I_yy)</th>
+                                <td class="code" id="calc-moi-inner">0.172 kg·m²</td>
                             </tr>
                             <tr>
-                                <th>Inner Frame (Part 6)</th>
-                                <td class="code">350 × 350 × 50.8 mm (Al6061)</td>
+                                <th>Outer Gimbal MOI (I_xx)</th>
+                                <td class="code" id="calc-moi-outer">0.485 kg·m²</td>
                             </tr>
                             <tr>
-                                <th>Payload Box (Part 3)</th>
-                                <td class="code">200 × 200 mm (120 mm Cavity)</td>
+                                <th>Inertial Torque (I·α_max)</th>
+                                <td class="code" id="calc-torque-inertial">0.17 N·m</td>
                             </tr>
                             <tr>
-                                <th>Shafts (Parts 4 & 7)</th>
-                                <td class="code">Ø20 mm Precision Steel</td>
+                                <th>Gravity Unbalance Torque</th>
+                                <td class="code" id="calc-torque-unbal">0.17 N·m (at 5mm C.G.)</td>
                             </tr>
                             <tr>
-                                <th>Outer Motor (Slide 11)</th>
-                                <td class="code">NEMA 34 Stepper (I_zz = 0.614)</td>
+                                <th>Peak Dynamic Torque</th>
+                                <td class="code" id="calc-torque-peak">0.38 N·m</td>
                             </tr>
                             <tr>
-                                <th>Inner Motor (Slide 11)</th>
-                                <td class="code">NEMA 23 Stepper (I_yy = 0.172)</td>
+                                <th>Motor Safety Factor (NEMA 23)</th>
+                                <td class="code" id="calc-sf" style="color: var(--accent-green); font-weight: 700;">7.4x (2.8 N·m rated)</td>
                             </tr>
                         </tbody>
                     </table>
@@ -379,63 +400,207 @@
             </div>
 
             <!-- =================================================================
-                 SUBTAB 4: HARDWARE & TELEMETRY (From v1)
+                 SUBTAB 4: EXPLODED ARCHITECTURE & WIRING SCHEMATIC
                  ================================================================= -->
             <div id="tab-hardware" class="subtab-content">
                 
-                <!-- Hardware Serial / WebSocket -->
+                <!-- Architecture Exploded Hierarchy -->
+                <div class="panel">
+                    <div class="panel-title" style="display: flex; justify-content: space-between; align-items: center;">
+                        <span>Hardware & Wiring Architecture</span>
+                        <button class="btn btn-secondary" style="font-size: 10px; padding: 2px 6px;" onclick="toggleSchematicModal(true)">
+                            Full Schematic
+                        </button>
+                    </div>
+                    
+                    <div class="schematic-level-card">
+                        <div class="schematic-level-title">
+                            <span>LEVEL 0: Stationary Base Frame (IS2062 Steel)</span>
+                            <span class="schem-chip pwr">24V DC / 15A</span>
+                        </div>
+                        <div style="font-size: 10.5px; color: var(--text-secondary); line-height: 1.35;">
+                            • Mean Well LRS-350-24 Industrial PSU with Dual-Channel E-Stop Relay<br>
+                            • Raspberry Pi 5 Master SBC (PREEMPT_RT Real-Time Linux)<br>
+                            • Trinamic TMC5160 SilentStepStick Driver (SPI + Step/Dir)<br>
+                            • NEMA 23 Stepper (2.8 N·m) with 1000 CPR Optical Encoder<br>
+                            • Ethernet Port (WebSocket 50 Hz Telemetry Server)
+                        </div>
+                        <div class="schematic-badges">
+                            <span class="schem-chip bus">CAN 2.0B (500 kbps)</span>
+                            <span class="schem-chip bus">WebSocket (ws://)</span>
+                            <span class="schem-chip pwr">24V Bus</span>
+                        </div>
+                    </div>
+
+                    <div class="schematic-level-card">
+                        <div class="schematic-level-title">
+                            <span>ROTATING JOINT 1: Stationary → Outer Gimbal</span>
+                            <span class="schem-chip">Slip Ring 1</span>
+                        </div>
+                        <div style="font-size: 10.5px; color: var(--text-secondary); line-height: 1.35;">
+                            • Moog / SenRing 12-channel Gold-on-Gold Capsule (360° Continuous)<br>
+                            • Ch 1-2: 24V Motor Bus (4A) • Ch 3-4: GND Return<br>
+                            • Ch 5-6: CAN_H / CAN_L (Shielded Twisted Pair, 120Ω Terminated)<br>
+                            • Ch 7-8: 5V Logic / GND • Ch 9-10: Encoder A/B • Ch 11-12: Shield/Interlock
+                        </div>
+                    </div>
+
+                    <div class="schematic-level-card">
+                        <div class="schematic-level-title">
+                            <span>LEVEL 1: Outer Rotating Gimbal Frame (Al6061)</span>
+                            <span class="schem-chip">500×500 mm</span>
+                        </div>
+                        <div style="font-size: 10.5px; color: var(--text-secondary); line-height: 1.35;">
+                            • Frame-Mounted TMC5160 Closed-Loop Stepper Driver<br>
+                            • NEMA 23 Stepper driving vertical gimbal shaft<br>
+                            • Hall Effect Optical Index Homing Sensor
+                        </div>
+                    </div>
+
+                    <div class="schematic-level-card">
+                        <div class="schematic-level-title">
+                            <span>ROTATING JOINT 2: Outer → Inner Gimbal</span>
+                            <span class="schem-chip">Slip Ring 2</span>
+                        </div>
+                        <div style="font-size: 10.5px; color: var(--text-secondary); line-height: 1.35;">
+                            • 12-channel Gold-Alloy Capsule transferring Power + Telemetry<br>
+                            • Ch 1-2: 24V Aux Power • Ch 3-4: GND Return<br>
+                            • Ch 5-6: CAN Bus • Ch 7-8: 5V Logic • Ch 9-10: RS-485 Aux • Ch 11: 1PPS Sync
+                        </div>
+                    </div>
+
+                    <div class="schematic-level-card">
+                        <div class="schematic-level-title">
+                            <span>LEVEL 2 & 3: Sealed Chamber & Embedded DAQ</span>
+                            <span class="schem-chip sensor">1 kHz Sampling</span>
+                        </div>
+                        <div style="font-size: 10.5px; color: var(--text-secondary); line-height: 1.35;">
+                            • STM32F405RG (168 MHz Cortex-M4 FPU) / RP2040 Embedded DAQ<br>
+                            • Primary IMU: TDK ICM-42688-P (1 kHz SPI, low noise ±3g at r=0)<br>
+                            • Secondary Gradient IMU: mounted on chamber wall (r=10cm)<br>
+                            • Pressure Transducer: Honeywell ABP 0–2 bar Absolute (I2C)<br>
+                            • Temperature Sensor: PT100 RTD with MAX31865 24-bit SPI ADC<br>
+                            • Micro-Disconnection Buffer: 32MB SPI NOR Flash Ring Buffer<br>
+                            • Bus Interface: MCP2562 CAN Transceiver (120Ω Terminated)
+                        </div>
+                        <div class="schematic-badges">
+                            <span class="schem-chip sensor">SPI @ 10 MHz</span>
+                            <span class="schem-chip sensor">I2C @ 400 kHz</span>
+                            <span class="schem-chip bus">CAN Frame 0x100</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 12-Channel Slip Ring Pinouts Table -->
+                <div class="panel">
+                    <div class="panel-title">Slip Ring 1 & 2 Pinout Specification</div>
+                    <table class="wiring-table">
+                        <thead>
+                            <tr>
+                                <th>Ch</th>
+                                <th>Signal</th>
+                                <th>Type / Level</th>
+                                <th>Gauge</th>
+                                <th>Function</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td>1, 2</td>
+                                <td>+24V_PWR</td>
+                                <td>24V DC (4A)</td>
+                                <td>AWG 20</td>
+                                <td>Stepper Motor DC Bus</td>
+                            </tr>
+                            <tr>
+                                <td>3, 4</td>
+                                <td>GND_PWR</td>
+                                <td>0V Return</td>
+                                <td>AWG 20</td>
+                                <td>Power Return Plane</td>
+                            </tr>
+                            <tr>
+                                <td>5</td>
+                                <td>CAN_H</td>
+                                <td>Diff. High</td>
+                                <td>AWG 26 STP</td>
+                                <td>ISO 11898-2 Telemetry</td>
+                            </tr>
+                            <tr>
+                                <td>6</td>
+                                <td>CAN_L</td>
+                                <td>Diff. Low</td>
+                                <td>AWG 26 STP</td>
+                                <td>ISO 11898-2 Telemetry</td>
+                            </tr>
+                            <tr>
+                                <td>7</td>
+                                <td>+5V_LOGIC</td>
+                                <td>5V DC (0.5A)</td>
+                                <td>AWG 24</td>
+                                <td>Isolated Microcontroller VCC</td>
+                            </tr>
+                            <tr>
+                                <td>8</td>
+                                <td>GND_LOGIC</td>
+                                <td>0V Logic</td>
+                                <td>AWG 24</td>
+                                <td>Clean Analog / Digital GND</td>
+                            </tr>
+                            <tr>
+                                <td>9</td>
+                                <td>ENC_A / RS485_A</td>
+                                <td>Digital / Diff</td>
+                                <td>AWG 26</td>
+                                <td>Encoder Quad / Sensor Bus</td>
+                            </tr>
+                            <tr>
+                                <td>10</td>
+                                <td>ENC_B / RS485_B</td>
+                                <td>Digital / Diff</td>
+                                <td>AWG 26</td>
+                                <td>Encoder Quad / Sensor Bus</td>
+                            </tr>
+                            <tr>
+                                <td>11</td>
+                                <td>SYNC_PULSE</td>
+                                <td>TTL Trigger</td>
+                                <td>AWG 26</td>
+                                <td>1 PPS Hardware Strobe</td>
+                            </tr>
+                            <tr>
+                                <td>12</td>
+                                <td>EARTH_SHIELD</td>
+                                <td>Chassis GND</td>
+                                <td>Braided</td>
+                                <td>Continuous EMI Drain</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                <!-- Hardware Serial / Telemetry Status (Non-blocking) -->
                 <div class="panel">
                     <div class="panel-title">Hardware Connectivity</div>
                     <div class="form-row">
                         <label class="form-label">Direct Microcontroller (WebSerial API)</label>
                         <button class="btn btn-primary" id="btn-webserial" style="width: 100%;" onclick="connectWebSerial()">
-                            🔌 Connect HW (WebSerial)
+                            Connect Hardware (WebSerial)
                         </button>
                     </div>
-                    <div class="form-row" style="margin-top: 12px;">
+                    <div class="form-row" style="margin-top: 10px;">
                         <label class="form-label">WebSocket Telemetry Stream</label>
                         <input type="text" class="form-input" id="ws-url-input" value="ws://localhost:8080" placeholder="ws://localhost:8080">
                     </div>
                     <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 6px;">
                         <span style="font-size: 11px; color: var(--text-muted);">Status:</span>
-                        <span id="ws-status-badge" style="font-size: 11px; font-weight: 700; color: var(--accent-green);">● In-Browser 50Hz Engine</span>
-                    </div>
-                </div>
-
-                <!-- Gravity Vector Components (from v1) -->
-                <div class="panel">
-                    <div class="panel-title">Gravity Vector (Sample Frame)</div>
-                    <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 6px; margin-bottom: 8px;">
-                        <div style="background: var(--bg-alt); padding: 6px; border-radius: 4px; text-align: center;">
-                            <div style="font-size: 10px; color: var(--accent-red); font-weight: 700;">Gx</div>
-                            <div style="font-family: var(--font-mono); font-size: 13px; font-weight: 700;" id="card-gx">0.000</div>
-                        </div>
-                        <div style="background: var(--bg-alt); padding: 6px; border-radius: 4px; text-align: center;">
-                            <div style="font-size: 10px; color: var(--accent-blue); font-weight: 700;">Gy</div>
-                            <div style="font-family: var(--font-mono); font-size: 13px; font-weight: 700;" id="card-gy">0.000</div>
-                        </div>
-                        <div style="background: var(--bg-alt); padding: 6px; border-radius: 4px; text-align: center;">
-                            <div style="font-size: 10px; color: var(--accent-green); font-weight: 700;">Gz</div>
-                            <div style="font-family: var(--font-mono); font-size: 13px; font-weight: 700;" id="card-gz">1.000</div>
-                        </div>
-                    </div>
-                    <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 6px;">
-                        <div style="background: var(--bg-alt); padding: 6px; border-radius: 4px; text-align: center;">
-                            <div style="font-size: 10px; color: var(--text-muted); font-weight: 600;">Avg Gx</div>
-                            <div style="font-family: var(--font-mono); font-size: 12px; font-weight: 600;" id="card-avg-gx">0.000</div>
-                        </div>
-                        <div style="background: var(--bg-alt); padding: 6px; border-radius: 4px; text-align: center;">
-                            <div style="font-size: 10px; color: var(--text-muted); font-weight: 600;">Avg Gy</div>
-                            <div style="font-family: var(--font-mono); font-size: 12px; font-weight: 600;" id="card-avg-gy">0.000</div>
-                        </div>
-                        <div style="background: var(--bg-alt); padding: 6px; border-radius: 4px; text-align: center;">
-                            <div style="font-size: 10px; color: var(--text-muted); font-weight: 600;">Avg Gz</div>
-                            <div style="font-family: var(--font-mono); font-size: 12px; font-weight: 600;" id="card-avg-gz">0.000</div>
-                        </div>
+                        <span id="ws-status-badge" style="font-size: 11px; font-weight: 700; color: var(--accent-green);">In-Browser 50Hz Real-Time Engine</span>
                     </div>
                 </div>
 
             </div>
+
+        </aside>
 
         </aside>
 
@@ -453,16 +618,16 @@
                     <span class="metric-val" id="metric-inst-g">1.000 g</span>
                 </div>
                 <div class="metric-item">
-                    <span class="metric-label" id="metric-cent-label">Envelope a_c (r=10cm)</span>
-                    <span class="metric-val" id="metric-centrifugal">0.0000 g</span>
+                    <span class="metric-label">Inner Motor Torque</span>
+                    <span class="metric-val" id="metric-torque-inner">0.18 N·m</span>
                 </div>
                 <div class="metric-item">
-                    <span class="metric-label" id="metric-regime-label">Bond Number Bo (Capillary)</span>
-                    <span class="metric-val" id="metric-safe-radius">3.5e-5 (Bo ≪ 1)</span>
+                    <span class="metric-label">Outer Motor Torque</span>
+                    <span class="metric-val" id="metric-torque-outer">0.35 N·m</span>
                 </div>
                 <div class="metric-item">
-                    <span class="metric-label">Fluid Shear Stress</span>
-                    <span class="metric-val" id="metric-shear">0.00 mPa</span>
+                    <span class="metric-label">Effective System MOI</span>
+                    <span class="metric-val" id="metric-moi">0.485 / 0.172 kg·m²</span>
                 </div>
                 <div class="metric-item">
                     <span class="metric-label">Logged Timesteps</span>
@@ -476,16 +641,16 @@
                 <!-- CAD Assembly View -->
                 <div class="cad-container" id="cad-canvas-container">
                     <div class="cad-overlay">
-                        <div><strong>CAD Assembly (1:1 Metric Scale)</strong></div>
-                        <div>Outer: 500 mm Al6061 • Inner: 350 mm Al6061</div>
-                        <div>Payload: 200 mm Polycarbonate (120 mm Chamber)</div>
+                        <div><strong id="cad-dimensions-label">Dual Gimbal Mechanics</strong></div>
+                        <div id="cad-frames-label">Outer: 500 mm Al6061 • Inner: 350 mm Al6061</div>
+                        <div id="cad-payload-label">Chamber: 200 mm Polycarbonate (Payload 3.5 kg)</div>
                         <div style="margin-top: 4px; font-size: 10px; color: var(--text-muted);">Orbit: Left Drag • Zoom: Scroll Wheel</div>
                     </div>
 
                     <!-- Direct Action Buttons in Window -->
                     <div class="cad-action-bar">
                         <button class="btn btn-secondary" onclick="toggleTiltModal(true)" style="background: rgba(255,255,255,0.95); box-shadow: 0 1px 4px rgba(0,0,0,0.1);">
-                            ⚙️ Modify Angles & Tilts
+                            Modify Angles & Tilts
                         </button>
                     </div>
                 </div>
@@ -530,56 +695,70 @@
                         </div>
                     </div>
 
-                    <div style="font-size: 11px; color: var(--text-secondary); line-height: 1.5; padding: 8px; border-left: 3px solid var(--accent-navy); background: #f8fafc;">
-                        <strong>Centrifugal Threshold Compliance:</strong> Residual centrifugal acceleration remains strictly below the international 10⁻³ g biological microgravity boundary up to <strong>22.3 cm</strong> from center (Wadhwa et al. 2026 Eq 5).
+                    <div style="padding: 10px; background: #f8fafc; border: 1px solid var(--border-color); border-radius: 4px; margin-top: 8px;">
+                        <div style="font-size: 10.5px; font-weight: 700; color: var(--accent-navy); margin-bottom: 6px; display: flex; justify-content: space-between;">
+                            <span>DYNAMIC DRIVE TORQUE & LOAD</span>
+                            <span id="live-sf-badge" style="color: var(--accent-green); font-weight: 700;">SF: 7.4x</span>
+                        </div>
+                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 6px; font-size: 11px;">
+                            <div>Inner Torque: <strong id="live-torque-inner" style="font-family: var(--font-mono); color: #1e3a8a;">0.18 N·m</strong></div>
+                            <div>Outer Torque: <strong id="live-torque-outer" style="font-family: var(--font-mono); color: #1e3a8a;">0.35 N·m</strong></div>
+                            <div>Peak Demand: <strong id="live-torque-peak" style="font-family: var(--font-mono); color: #334155;">0.38 N·m</strong></div>
+                            <div>NEMA 23 Limit: <strong style="font-family: var(--font-mono); color: #64748b;">2.80 N·m</strong></div>
+                        </div>
                     </div>
                 </div>
 
             </div>
 
-            <!-- Lower Grid: Publication-Quality Scientific Charts (With S² Unit Sphere Plot restored!) -->
+            <!-- Lower Grid: 4 Publication-Quality Scientific Charts in One Entire Row -->
             <div class="charts-row">
                 
-                <!-- Chart 1: Time Series of Gx, Gy, Gz & taSMG (Pure White Background) -->
+                <!-- Plot 1: Acceleration Vector Time Series G(t) -->
                 <div class="chart-card">
                     <div class="chart-header">
-                        <span>Gravity Acceleration Time Series (Yotov et al. 2022)</span>
-                        <span style="font-family: var(--font-mono); font-size: 10px; color: #64748b;">50 Hz Discrete Step</span>
+                        <span>Acceleration Vector G(t)</span>
+                        <span class="mono-badge">50 Hz Time Series</span>
                     </div>
-                    <div style="position: relative; height: 240px; background: #ffffff;">
+                    <div class="chart-body">
                         <canvas id="timeseries-canvas"></canvas>
                     </div>
                 </div>
 
-                <!-- Chart 2: Multi-Plot (S² Unit Sphere Plot, Navier-Stokes Shear, Centrifugal Gradient) -->
+                <!-- Plot 2: Dynamic Motor Torque & Load τ(t) -->
                 <div class="chart-card">
                     <div class="chart-header">
-                        <span id="multiplot-title">g⃗ Trajectory on Unit Sphere (S² Celestial Space)</span>
-                        <div class="plot-tabs-nav">
-                            <button class="plot-tab-btn active" onclick="switchPlotView('plot-sphere')">🌐 Unit Sphere (S²)</button>
-                            <button class="plot-tab-btn" onclick="switchPlotView('plot-shear')">🌊 Fluid Shear</button>
-                            <button class="plot-tab-btn" onclick="switchPlotView('plot-centrifugal')">⚡ Centrifugal</button>
-                        </div>
+                        <span>Dynamic Motor Torque τ(t)</span>
+                        <span class="mono-badge">NEMA 23 (2.8 N·m)</span>
                     </div>
-                    
-                    <!-- View A: 3D Unit Sphere Trajectory (Three.js on Canvas) -->
-                    <div id="plot-sphere" class="plot-view active">
-                        <canvas id="sphere-canvas" style="width: 100%; height: 100%; display: block;"></canvas>
-                        <div style="position: absolute; bottom: 6px; left: 8px; font-size: 10px; color: var(--text-muted); background: rgba(255,255,255,0.85); padding: 2px 6px; border-radius: 3px;">
-                            Drag: Orbit S² • Cyan Trail: Gravity Trajectory • Red Dot: Instant Vector
-                        </div>
+                    <div class="chart-body">
+                        <canvas id="torque-canvas"></canvas>
                     </div>
+                </div>
 
-                    <!-- View B: 1D Navier-Stokes Fluid Shear Profile -->
-                    <div id="plot-shear" class="plot-view">
-                        <canvas id="shear-canvas"></canvas>
+                <!-- Plot 3: Volumetric Centrifugal Gradient a_c(r) -->
+                <div class="chart-card">
+                    <div class="chart-header">
+                        <span>Centrifugal Field Gradient a_c(r)</span>
+                        <span class="mono-badge">r = 0 to 15 cm</span>
                     </div>
-
-                    <!-- View C: Volumetric Centrifugal Gradient vs Radius -->
-                    <div id="plot-centrifugal" class="plot-view">
+                    <div class="chart-body">
                         <canvas id="centrifugal-canvas"></canvas>
                     </div>
+                </div>
 
+                <!-- Plot 4: Interactive Gravity Trajectory on Unit Sphere S² -->
+                <div class="chart-card">
+                    <div class="chart-header">
+                        <span>Gravity Vector Orbit on S²</span>
+                        <span class="mono-badge">Three.js Celestial S²</span>
+                    </div>
+                    <div class="chart-body" style="position: relative;">
+                        <canvas id="sphere-canvas" style="width: 100%; height: 100%; display: block;"></canvas>
+                        <div style="position: absolute; bottom: 4px; left: 6px; font-size: 9.5px; color: var(--text-muted); background: rgba(255,255,255,0.9); padding: 2px 5px; border-radius: 3px;">
+                            Drag: Rotate S² • Red Dot: Instant g⃗
+                        </div>
+                    </div>
                 </div>
 
             </div>
@@ -647,10 +826,10 @@
                 <!-- Action Buttons -->
                 <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px;">
                     <button class="btn btn-primary" onclick="applyModalChangesAndHold()">
-                        ⚙️ Apply Angles & Hold
+                        Apply Angles & Hold
                     </button>
                     <button class="btn btn-secondary" onclick="resumeFromModal()">
-                        ▶ Resume Simulation
+                        Resume Simulation
                     </button>
                 </div>
 
@@ -783,6 +962,216 @@
             </div>
         </div>
     </div>
+
+    <!-- =========================================================================
+         MODAL: FULL EXPLODED ARCHITECTURE & WIRING SCHEMATIC
+         ========================================================================= -->
+    <div id="schematic-modal" class="modal-overlay" onclick="toggleSchematicModal(false)">
+        <div class="modal-dialog" style="max-width: 950px;" onclick="event.stopPropagation()">
+            <div class="modal-header">
+                <div>
+                    <strong style="color: var(--accent-navy); font-size: 14px;">Exploded Hardware Architecture, Interconnects & Slip Ring Pinout Schema</strong>
+                    <div style="font-size: 11px; color: var(--text-muted);">Department of Aerospace Engineering • Random Positioning Machine Digital Twin v2.0</div>
+                </div>
+                <button onclick="toggleSchematicModal(false)" style="background:none; border:none; font-size: 18px; cursor:pointer;">&times;</button>
+            </div>
+            <div class="modal-body" style="padding: 20px;">
+                
+                <!-- Overview Banner -->
+                <div style="background: #f8fafc; border: 1px solid var(--border-color); border-radius: 6px; padding: 12px; margin-bottom: 16px;">
+                    <div style="font-size: 12px; font-weight: 700; color: var(--accent-navy); margin-bottom: 4px;">Electromechanical Integration Overview</div>
+                    <div style="font-size: 11px; color: var(--text-secondary); line-height: 1.5;">
+                        The IIST RPM employs a dual-gimbal nested rotation structure requiring continuous 360° unconstrained rotation across two orthogonal axes. Power, real-time closed-loop motor control, and synchronous multi-sensor DAQ telemetry are routed through two commercial 12-channel gold-on-gold slip ring capsules, isolating high-current motor power from microvolt-sensitive telemetry lines.
+                    </div>
+                </div>
+
+                <!-- Exploded Block Schema -->
+                <div style="display: grid; grid-template-columns: 1fr; gap: 12px; margin-bottom: 20px;">
+                    
+                    <div class="schematic-level-card">
+                        <div class="schematic-level-title">
+                            <span>LEVEL 0: Stationary Base Frame & Ground Control</span>
+                            <span class="schem-chip pwr">24V DC / 15A Bus</span>
+                        </div>
+                        <div style="font-size: 11px; color: var(--text-secondary); line-height: 1.45;">
+                            <strong>Power Subsystem:</strong> Mean Well LRS-350-24 Industrial Switch-Mode PSU (24V DC, 14.6A) with inline dual-channel Emergency Stop relay contactor and EMI line filter.<br>
+                            <strong>Master SBC:</strong> Raspberry Pi 5 (4× Cortex-A76 @ 2.4 GHz, PREEMPT_RT patched Linux kernel). Runs the 50 Hz trajectory planner, kinematics engine, and native WebSocket server.<br>
+                            <strong>Stationary Motor Driver:</strong> Trinamic TMC5160 SilentStepStick (SPI control + Step/Dir), driving stationary NEMA 23 stepper motor (2.8 N·m, 3.0A).<br>
+                            <strong>Position Feedback:</strong> 1000 CPR Optical Quadrature Encoder with line driver (A+, A-, B+, B-, Z+, Z-).
+                        </div>
+                        <div class="schematic-badges" style="margin-top: 8px;">
+                            <span class="schem-chip bus">CAN 2.0B (500 kbps)</span>
+                            <span class="schem-chip bus">WebSocket (ws://localhost:8080)</span>
+                            <span class="schem-chip pwr">24V DC / 15A</span>
+                        </div>
+                    </div>
+
+                    <div style="text-align: center; color: var(--accent-navy); font-weight: 700; font-size: 11px;">
+                        ▼ ROTATING JOINT 1: Stationary Base → Outer Gimbal (12-Channel Gold Capsule Slip Ring 1) ▼
+                    </div>
+
+                    <div class="schematic-level-card">
+                        <div class="schematic-level-title">
+                            <span>LEVEL 1: Outer Rotating Gimbal Frame (500×500 mm Al6061-T6)</span>
+                            <span class="schem-chip">Vertical Axis Motor</span>
+                        </div>
+                        <div style="font-size: 11px; color: var(--text-secondary); line-height: 1.45;">
+                            <strong>Gimbal Driver:</strong> Frame-mounted TMC5160 driver with passive extruded aluminum heatsink.<br>
+                            <strong>Vertical Motor:</strong> NEMA 23 High-Torque Bipolar Stepper (2.8 N·m) coupled to inner gimbal vertical shaft via zero-backlash spider coupling.<br>
+                            <strong>Index Sensor:</strong> Miniature Hall-effect optical homing switch for absolute zero-position calibration at startup.<br>
+                            <strong>CAN Node:</strong> MCP2562 transceiver for remote driver status telemetry and overtemperature monitoring.
+                        </div>
+                    </div>
+
+                    <div style="text-align: center; color: var(--accent-navy); font-weight: 700; font-size: 11px;">
+                        ▼ ROTATING JOINT 2: Outer Gimbal → Inner Gimbal (12-Channel Gold Capsule Slip Ring 2) ▼
+                    </div>
+
+                    <div class="schematic-level-card">
+                        <div class="schematic-level-title">
+                            <span>LEVEL 2 & 3: Sealed Payload Chamber & Embedded DAQ (200×200 mm)</span>
+                            <span class="schem-chip sensor">1 kHz Synchronous Sampling</span>
+                        </div>
+                        <div style="font-size: 11px; color: var(--text-secondary); line-height: 1.45;">
+                            <strong>Microcontroller:</strong> STM32F405RG (168 MHz Cortex-M4 with hardware FPU) or RP2040 running FreeRTOS with microsecond task scheduling.<br>
+                            <strong>Primary Center-of-Mass IMU:</strong> TDK InvenSense ICM-42688-P (Ultra-low noise 6-axis, ±3g full-scale, SPI @ 10 MHz, hardware FIFO sampled at 1 kHz).<br>
+                            <strong>Boundary Reference IMU:</strong> Bosch BMI088 (mounted at r = 10 cm on chamber wall to measure radial centrifugal gradient a_c(r)).<br>
+                            <strong>Chamber Pressure Transducer:</strong> Honeywell ABP Series 0–2 bar Absolute Pressure Transducer (I2C @ 400 kHz) for chamber atmosphere monitoring.<br>
+                            <strong>Thermal Probe:</strong> 4-wire PT100 RTD with MAX31865 24-bit SPI Converter (for melt pool / crucible thermal tracking).<br>
+                            <strong>Micro-Disconnection Ring Buffer:</strong> 32MB Winbond SPI NOR Flash (stores up to 2 hours of raw telemetry during transient slip-ring brush micro-interruptions &lt; 5 ms).<br>
+                            <strong>Bus Interface:</strong> MCP2562 CAN transceiver with 120Ω termination, packaging frames (CAN ID 0x100 for IMU, 0x101 for Pressure/Temp).
+                        </div>
+                        <div class="schematic-badges" style="margin-top: 8px;">
+                            <span class="schem-chip sensor">SPI @ 10 MHz</span>
+                            <span class="schem-chip sensor">I2C @ 400 kHz</span>
+                            <span class="schem-chip bus">CAN 2.0B (500 kbps)</span>
+                            <span class="schem-chip">32MB SPI Flash</span>
+                        </div>
+                    </div>
+
+                </div>
+
+                <!-- Complete 12-Channel Pinout Specifications -->
+                <div style="font-size: 12px; font-weight: 700; color: var(--accent-navy); margin-bottom: 8px;">
+                    12-Channel Slip Ring Pinout & Harness Specification (Slip Ring 1 & 2)
+                </div>
+                <table class="wiring-table" style="margin-bottom: 12px;">
+                    <thead>
+                        <tr>
+                            <th>Channel</th>
+                            <th>Designation</th>
+                            <th>Electrical Spec</th>
+                            <th>Wire Gauge</th>
+                            <th>Physical Harness & Shielding</th>
+                            <th>Subsystem Function</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td><strong>Ch 1</strong></td>
+                            <td>+24V_PWR</td>
+                            <td>24V DC / 2.0A</td>
+                            <td>AWG 20 Red</td>
+                            <td>High-flex silicone stranded wire</td>
+                            <td>Motor Driver High-Current DC Bus Rail (+)</td>
+                        </tr>
+                        <tr>
+                            <td><strong>Ch 2</strong></td>
+                            <td>+24V_PWR</td>
+                            <td>24V DC / 2.0A</td>
+                            <td>AWG 20 Red</td>
+                            <td>Paralleled with Ch 1 (total 4.0A capacity)</td>
+                            <td>Motor Driver High-Current DC Bus Rail (+)</td>
+                        </tr>
+                        <tr>
+                            <td><strong>Ch 3</strong></td>
+                            <td>GND_PWR</td>
+                            <td>0V Return / 2.0A</td>
+                            <td>AWG 20 Black</td>
+                            <td>High-flex silicone stranded wire</td>
+                            <td>Power Return Plane (-)</td>
+                        </tr>
+                        <tr>
+                            <td><strong>Ch 4</strong></td>
+                            <td>GND_PWR</td>
+                            <td>0V Return / 2.0A</td>
+                            <td>AWG 20 Black</td>
+                            <td>Paralleled with Ch 3 (total 4.0A capacity)</td>
+                            <td>Power Return Plane (-)</td>
+                        </tr>
+                        <tr>
+                            <td><strong>Ch 5</strong></td>
+                            <td>CAN_H</td>
+                            <td>ISO 11898-2 Diff High</td>
+                            <td>AWG 26 White</td>
+                            <td>Shielded Twisted Pair (with Ch 6)</td>
+                            <td>500 kbps Differential CAN Bus High</td>
+                        </tr>
+                        <tr>
+                            <td><strong>Ch 6</strong></td>
+                            <td>CAN_L</td>
+                            <td>ISO 11898-2 Diff Low</td>
+                            <td>AWG 26 Blue</td>
+                            <td>Shielded Twisted Pair, 120Ω terminated</td>
+                            <td>500 kbps Differential CAN Bus Low</td>
+                        </tr>
+                        <tr>
+                            <td><strong>Ch 7</strong></td>
+                            <td>+5V_LOGIC</td>
+                            <td>5V DC / 0.5A</td>
+                            <td>AWG 24 Yellow</td>
+                            <td>Isolated DC-DC regulator output</td>
+                            <td>Clean MCU & Sensor Digital Logic VCC</td>
+                        </tr>
+                        <tr>
+                            <td><strong>Ch 8</strong></td>
+                            <td>GND_LOGIC</td>
+                            <td>0V Logic Ground</td>
+                            <td>AWG 24 Brown</td>
+                            <td>Star-grounded logic return plane</td>
+                            <td>Isolated Ground Reference for ADC/Sensors</td>
+                        </tr>
+                        <tr>
+                            <td><strong>Ch 9</strong></td>
+                            <td>ENC_A / RS485_A</td>
+                            <td>TTL / RS-485 Diff A</td>
+                            <td>AWG 26 Green</td>
+                            <td>Shielded Twisted Pair (with Ch 10)</td>
+                            <td>Inner Encoder Ch A or RS-485 Sensor Bus A</td>
+                        </tr>
+                        <tr>
+                            <td><strong>Ch 10</strong></td>
+                            <td>ENC_B / RS485_B</td>
+                            <td>TTL / RS-485 Diff B</td>
+                            <td>AWG 26 Orange</td>
+                            <td>Shielded Twisted Pair (with Ch 9)</td>
+                            <td>Inner Encoder Ch B or RS-485 Sensor Bus B</td>
+                        </tr>
+                        <tr>
+                            <td><strong>Ch 11</strong></td>
+                            <td>1PPS_SYNC</td>
+                            <td>3.3V / 5V TTL Pulse</td>
+                            <td>AWG 26 Violet</td>
+                            <td>Fast rise-time hardware strobe line</td>
+                            <td>1 Pulse-Per-Second Hardware Master Time Sync</td>
+                        </tr>
+                        <tr>
+                            <td><strong>Ch 12</strong></td>
+                            <td>EARTH_SHIELD</td>
+                            <td>Chassis Ground</td>
+                            <td>AWG 22 Bare Braid</td>
+                            <td>Continuous braided drain to base ground</td>
+                            <td>EMI Shield Drain & Interlock Safety Ground</td>
+                        </tr>
+                    </tbody>
+                </table>
+
+            </div>
+        </div>
+    </div>
+
+    <!-- Non-blocking App Toast Notification -->
+    <div id="app-toast"></div>
 
     <!-- Scripts -->
     <script src="cad_model.js"></script>

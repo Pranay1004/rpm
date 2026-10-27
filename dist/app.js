@@ -6,6 +6,7 @@
 
 class RPMScientificApp {
     constructor() {
+        window.app = this;
         this.isRunning = true;
         this.dt = 0.02; // 50 Hz discrete timestep
         this.isHoldingAngles = false;
@@ -22,6 +23,29 @@ class RPMScientificApp {
         this.target_omega_psi = 0.573;
         this.base_inner_rpm = 0.5;
         this.base_outer_rpm = 0.573;
+
+        // Dynamic Angular Accelerations & Motor Torques
+        this.prev_omega_phi_rad_s = (0.5 * 2.0 * Math.PI) / 60.0;
+        this.prev_omega_psi_rad_s = (0.573 * 2.0 * Math.PI) / 60.0;
+        this.inst_torque_inner = 0.18;
+        this.inst_torque_outer = 0.35;
+        this.peak_torque_observed = 0.38;
+
+        // Custom Mechanics & Mass Moment of Inertia (MOI)
+        this.moiParams = {
+            outerSize_mm: 500,
+            outerSection_mm: 50.8,
+            outerWall_mm: 3.2,
+            outerMat: 'Al6061',
+            innerSize_mm: 350,
+            innerSection_mm: 50.8,
+            innerWall_mm: 3.2,
+            innerMat: 'Al6061',
+            payloadDim_mm: 200,
+            payloadMass_kg: 3.5,
+            payloadOffset_mm: 5.0
+        };
+        this.currentMOI = this.calculateMechanicalMOI();
 
         // Experimental Domain: 'manufacturing' (Space Manufacturing / WAAM) or 'biology'
         this.experiment_domain = 'manufacturing';
@@ -89,6 +113,11 @@ class RPMScientificApp {
         this.plot_tasmg = [];
         this.max_plot_points = 250;
 
+        // Dynamic Torque Buffers
+        this.plot_torque_inner = [];
+        this.plot_torque_outer = [];
+        this.plot_torque_limit = [];
+
         // S² Unit Sphere trajectory buffer
         this.sphereTrajectory = [];
         this.maxSpherePoints = 1200;
@@ -115,15 +144,170 @@ class RPMScientificApp {
     }
 
     init() {
-        this.init3D();
-        this.initSphereVisualization();
-        this.initPlots();
-        this.bindEvents();
-        this.renderSamplePointsTable();
-        this.updateModeUI();
+        try { this.init3D(); } catch (err) { console.error('init3D error:', err); }
+        try { this.initSphereVisualization(); } catch (err) { console.error('initSphereVisualization error:', err); }
+        try { this.initPlots(); } catch (err) { console.error('initPlots error:', err); }
+        try { this.bindEvents(); } catch (err) { console.error('bindEvents error:', err); }
+        try { this.renderSamplePointsTable(); } catch (err) { console.error('renderSamplePointsTable error:', err); }
+        try { this.updateModeUI(); } catch (err) { console.error('updateModeUI error:', err); }
+        try { this.applyCustomMechanicsParameters(false); } catch (err) { console.error('applyCustomMechanicsParameters error:', err); }
 
-        // 50 Hz Physics Interval
+        // 50 Hz Physics Interval (guaranteed running)
         setInterval(() => this.step(this.dt), 20);
+    }
+
+    /* =========================================================================
+       MECHANICAL MOI & PROVEN TORQUE DYNAMICS
+       ========================================================================= */
+    calculateMechanicalMOI() {
+        const p = this.moiParams || {
+            outerSize_mm: 500, outerSection_mm: 50.8, outerWall_mm: 3.2, outerMat: 'Al6061',
+            innerSize_mm: 350, innerSection_mm: 50.8, innerWall_mm: 3.2, innerMat: 'Al6061',
+            payloadDim_mm: 200, payloadMass_kg: 3.5, payloadOffset_mm: 5.0
+        };
+
+        const rhoOuter = p.outerMat === 'Steel' ? 7850 : 2700;
+        const rhoInner = p.innerMat === 'Steel' ? 7850 : 2700;
+
+        // Outer Gimbal Hollow Section Geometry (Square hollow tube)
+        const wOut_m = p.outerSection_mm / 1000.0;
+        const tOut_m = p.outerWall_mm / 1000.0;
+        const LOut_m = p.outerSize_mm / 1000.0;
+        const aTubeOut = (wOut_m * wOut_m) - Math.max(0, (wOut_m - 2 * tOut_m)**2);
+        const perimOut = Math.max(0.1, 4 * (LOut_m - wOut_m));
+        const massOuterFrame = rhoOuter * aTubeOut * perimOut * 1.10; // +10% corner gussets/flanges
+
+        // Inner Gimbal Hollow Section Geometry
+        const wIn_m = p.innerSection_mm / 1000.0;
+        const tIn_m = p.innerWall_mm / 1000.0;
+        const LIn_m = p.innerSize_mm / 1000.0;
+        const aTubeIn = (wIn_m * wIn_m) - Math.max(0, (wIn_m - 2 * tIn_m)**2);
+        const perimIn = Math.max(0.1, 4 * (LIn_m - wIn_m));
+        const massInnerFrame = rhoInner * aTubeIn * perimIn * 1.10;
+
+        // Payload Cube & Eccentricity
+        const mPayload = p.payloadMass_kg;
+        const LPayload_m = p.payloadDim_mm / 1000.0;
+        const offset_m = p.payloadOffset_mm / 1000.0;
+
+        // Inner Gimbal MOI (I_yy) about vertical pivot:
+        const mBeamIn = massInnerFrame / 4.0;
+        const dIn = (LIn_m - wIn_m) / 2.0;
+        const iParallelIn = 2 * ((1/12) * mBeamIn * (wIn_m**2) + mBeamIn * (dIn**2));
+        const iPerpIn = 2 * ((1/12) * mBeamIn * ((LIn_m - wIn_m)**2));
+        const iHubIn = 0.005; // bearing hub + shaft
+        const iPayloadIn = (1/6) * mPayload * (LPayload_m**2) + mPayload * (offset_m**2);
+        const I_yy = Math.max(0.01, iParallelIn + iPerpIn + iHubIn + iPayloadIn);
+
+        // Outer Gimbal MOI (I_xx) about horizontal pivot:
+        const mBeamOut = massOuterFrame / 4.0;
+        const dOut = (LOut_m - wOut_m) / 2.0;
+        const iParallelOut = 2 * ((1/12) * mBeamOut * (wOut_m**2) + mBeamOut * (dOut**2));
+        const iPerpOut = 2 * ((1/12) * mBeamOut * ((LOut_m - wOut_m)**2));
+        const iHubOut = 0.010;
+        const I_xx = Math.max(0.02, iParallelOut + iPerpOut + iHubOut + I_yy);
+
+        // Dynamic Torques
+        const alpha_max = 10.0; // rad/s²
+        const tau_inertial_inner = I_yy * alpha_max;
+        const tau_inertial_outer = I_xx * alpha_max;
+        const tau_unbalance = mPayload * 9.80665 * offset_m;
+        const tau_friction = 0.06; // dual ball bearings + gold slip ring drag
+        const tau_peak_inner = tau_inertial_inner + tau_unbalance + tau_friction;
+        const tau_peak_outer = tau_inertial_outer + tau_unbalance + tau_friction;
+        const tau_peak_max = Math.max(tau_peak_inner, tau_peak_outer);
+        const motor_rated = 2.80; // N·m for NEMA 23
+        const sf = motor_rated / (tau_peak_max + 1e-6);
+
+        return {
+            massOuterFrame,
+            massInnerFrame,
+            I_yy,
+            I_xx,
+            tau_inertial_inner,
+            tau_inertial_outer,
+            tau_unbalance,
+            tau_friction,
+            tau_peak_inner,
+            tau_peak_outer,
+            tau_peak_max,
+            sf
+        };
+    }
+
+    applyCustomMechanicsParameters(notify = true) {
+        const outerSize = parseFloat(document.getElementById('outer-size-input')?.value || 500);
+        const outerSection = parseFloat(document.getElementById('outer-section-input')?.value || 50.8);
+        const outerWall = parseFloat(document.getElementById('outer-wall-input')?.value || 3.2);
+        const outerMat = document.getElementById('outer-mat-select')?.value || 'Al6061';
+
+        const innerSize = parseFloat(document.getElementById('inner-size-input')?.value || 350);
+        const innerSection = parseFloat(document.getElementById('inner-section-input')?.value || 50.8);
+        const innerWall = parseFloat(document.getElementById('inner-wall-input')?.value || 3.2);
+        const innerMat = document.getElementById('inner-mat-select')?.value || 'Al6061';
+
+        const payloadDim = parseFloat(document.getElementById('payload-dim-input')?.value || 200);
+        const payloadMass = parseFloat(document.getElementById('payload-mass-input')?.value || 3.5);
+        const payloadOffset = parseFloat(document.getElementById('payload-offset-input')?.value || 5.0);
+
+        this.moiParams = {
+            outerSize_mm: outerSize,
+            outerSection_mm: outerSection,
+            outerWall_mm: outerWall,
+            outerMat: outerMat,
+            innerSize_mm: innerSize,
+            innerSection_mm: innerSection,
+            innerWall_mm: innerWall,
+            innerMat: innerMat,
+            payloadDim_mm: payloadDim,
+            payloadMass_kg: payloadMass,
+            payloadOffset_mm: payloadOffset
+        };
+
+        const moi = this.calculateMechanicalMOI();
+        this.currentMOI = moi;
+
+        // Update Spec Table DOM
+        const elMassOut = document.getElementById('calc-mass-outer');
+        const elMassIn = document.getElementById('calc-mass-inner');
+        const elMoiIn = document.getElementById('calc-moi-inner');
+        const elMoiOut = document.getElementById('calc-moi-outer');
+        const elTorqueInertial = document.getElementById('calc-torque-inertial');
+        const elTorqueUnbal = document.getElementById('calc-torque-unbal');
+        const elTorquePeak = document.getElementById('calc-torque-peak');
+        const elSf = document.getElementById('calc-sf');
+
+        if (elMassOut) elMassOut.textContent = moi.massOuterFrame.toFixed(2) + ' kg';
+        if (elMassIn) elMassIn.textContent = moi.massInnerFrame.toFixed(2) + ' kg';
+        if (elMoiIn) elMoiIn.textContent = moi.I_yy.toFixed(3) + ' kg·m²';
+        if (elMoiOut) elMoiOut.textContent = moi.I_xx.toFixed(3) + ' kg·m²';
+        if (elTorqueInertial) elTorqueInertial.textContent = moi.tau_inertial_outer.toFixed(2) + ' N·m (Outer)';
+        if (elTorqueUnbal) elTorqueUnbal.textContent = `${moi.tau_unbalance.toFixed(2)} N·m (${payloadOffset}mm C.G.)`;
+        if (elTorquePeak) elTorquePeak.textContent = moi.tau_peak_max.toFixed(2) + ' N·m';
+        if (elSf) {
+            elSf.textContent = `${moi.sf.toFixed(1)}x (${moi.sf >= 2.0 ? 'SAFE' : 'MARGINAL'})`;
+            elSf.style.color = moi.sf >= 2.0 ? 'var(--accent-green)' : 'var(--accent-red)';
+        }
+
+        // Update CAD labels
+        const lblFrames = document.getElementById('cad-frames-label');
+        const lblPayload = document.getElementById('cad-payload-label');
+        if (lblFrames) lblFrames.textContent = `Outer: ${outerSize} mm ${outerMat} • Inner: ${innerSize} mm ${innerMat}`;
+        if (lblPayload) lblPayload.textContent = `Chamber: ${payloadDim} mm (Payload ${payloadMass} kg, ${payloadOffset}mm offset)`;
+
+        // Rescale CAD Assembly smoothly
+        if (this.cadAssembly) {
+            const outerScale = outerSize / 500.0;
+            const innerScale = innerSize / 350.0;
+            const payloadScale = payloadDim / 200.0;
+            if (this.cadAssembly.outerFrameGroup) this.cadAssembly.outerFrameGroup.scale.set(outerScale, outerScale, outerScale);
+            if (this.cadAssembly.innerFrameGroup) this.cadAssembly.innerFrameGroup.scale.set(innerScale, innerScale, innerScale);
+            if (this.cadAssembly.payloadGroup) this.cadAssembly.payloadGroup.scale.set(payloadScale, payloadScale, payloadScale);
+        }
+
+        if (notify && typeof showToast === 'function') {
+            showToast(`Mechanics updated: I_xx = ${moi.I_xx.toFixed(3)} kg·m², I_yy = ${moi.I_yy.toFixed(3)} kg·m², Peak τ = ${moi.tau_peak_max.toFixed(2)} N·m (SF: ${moi.sf.toFixed(1)}x)`, 'info');
+        }
     }
 
     /* =========================================================================
@@ -425,23 +609,18 @@ class RPMScientificApp {
             });
         }
 
-        // Chart 2B: 1D Navier-Stokes Fluid Diffusion Profile
-        const fdmCtx = document.getElementById('shear-canvas');
-        if (fdmCtx) {
-            this.fdmChart = new Chart(fdmCtx, {
+        // Chart 2: Dynamic Motor Torque τ(t) (N·m)
+        const torqueCtx = document.getElementById('torque-canvas');
+        if (torqueCtx) {
+            this.torqueChart = new Chart(torqueCtx, {
                 type: 'line',
                 data: {
                     labels: [],
-                    datasets: [{
-                        label: 'Fluid Velocity u_θ (mm/s)',
-                        data: [],
-                        borderColor: '#1e3a8a',
-                        backgroundColor: 'rgba(30, 58, 138, 0.08)',
-                        borderWidth: 2,
-                        fill: true,
-                        pointRadius: 0,
-                        tension: 0.3
-                    }]
+                    datasets: [
+                        { label: 'τ Inner (N·m)', data: [], borderColor: '#1e3a8a', borderWidth: 1.5, pointRadius: 0, tension: 0.1 },
+                        { label: 'τ Outer (N·m)', data: [], borderColor: '#059669', borderWidth: 1.5, pointRadius: 0, tension: 0.1 },
+                        { label: 'NEMA 23 Limit (2.8)', data: [], borderColor: '#dc2626', borderWidth: 1.5, borderDash: [4, 4], pointRadius: 0 }
+                    ]
                 },
                 options: {
                     responsive: true,
@@ -449,19 +628,19 @@ class RPMScientificApp {
                     animation: false,
                     scales: {
                         x: {
-                            title: { display: true, text: 'Radius r (cm)', color: '#475569', font: { size: 10 } },
-                            ticks: { color: '#64748b', font: { size: 9 } },
+                            title: { display: true, text: 'Time (s)', color: '#475569', font: { size: 9 } },
+                            ticks: { color: '#64748b', font: { size: 8 }, maxTicksLimit: 8 },
                             grid: { color: '#f1f5f9' }
                         },
                         y: {
-                            min: 0,
-                            title: { display: true, text: 'Velocity (mm/s)', color: '#475569', font: { size: 10 } },
-                            ticks: { color: '#64748b', font: { size: 9 } },
+                            min: 0, max: 3.2,
+                            title: { display: true, text: 'Torque (N·m)', color: '#475569', font: { size: 9 } },
+                            ticks: { color: '#64748b', font: { size: 8 }, stepSize: 0.8 },
                             grid: { color: '#e2e8f0' }
                         }
                     },
                     plugins: {
-                        legend: { display: false }
+                        legend: { position: 'top', labels: { boxWidth: 10, font: { size: 9, weight: '600' } } }
                     }
                 }
             });
@@ -691,9 +870,24 @@ class RPMScientificApp {
         const avg_gz = this.sum_gz / this.samples;
         this.tasmg = Math.sqrt(avg_gx * avg_gx + avg_gy * avg_gy + avg_gz * avg_gz);
 
-        // Wadhwa et al. (2026) Volumetric Accelerations
+        // Dynamic angular accelerations (alpha) in rad/s²
         const omega_phi_rad_s = (this.omega_phi_rpm * 2.0 * Math.PI) / 60.0;
         const omega_psi_rad_s = (this.omega_psi_rpm * 2.0 * Math.PI) / 60.0;
+        const alpha_phi = (omega_phi_rad_s - this.prev_omega_phi_rad_s) / dt;
+        const alpha_psi = (omega_psi_rad_s - this.prev_omega_psi_rad_s) / dt;
+        this.prev_omega_phi_rad_s = omega_phi_rad_s;
+        this.prev_omega_psi_rad_s = omega_psi_rad_s;
+
+        // Dynamic motor torques (I·α + M·g·Δr·sinθ + friction)
+        const moi = this.currentMOI || this.calculateMechanicalMOI();
+        const tau_in = Math.abs(moi.I_yy * alpha_phi) + Math.abs(moi.tau_unbalance * Math.sin(phi_rad)) + moi.tau_friction;
+        const tau_out = Math.abs(moi.I_xx * alpha_psi) + Math.abs(moi.tau_unbalance * Math.sin(psi_rad)) + moi.tau_friction;
+        this.inst_torque_inner = tau_in;
+        this.inst_torque_outer = tau_out;
+        if (tau_in > this.peak_torque_observed) this.peak_torque_observed = tau_in;
+        if (tau_out > this.peak_torque_observed) this.peak_torque_observed = tau_out;
+
+        // Wadhwa et al. (2026) Volumetric Accelerations
         const omega_norm = Math.sqrt(omega_phi_rad_s**2 + omega_psi_rad_s**2);
         const g0 = 9.80665;
 
@@ -768,6 +962,8 @@ class RPMScientificApp {
                 gz: gz,
                 inst_g: inst_g,
                 tasmg: this.tasmg,
+                torque_inner: tau_in,
+                torque_outer: tau_out,
                 cent_edge: a_cent_edge_g,
                 shear_mPa: this.last_shear_stress
             });
@@ -780,12 +976,20 @@ class RPMScientificApp {
         this.plot_gz.push(gz);
         this.plot_tasmg.push(this.tasmg);
 
+        // Torque buffers
+        this.plot_torque_inner.push(parseFloat(tau_in.toFixed(3)));
+        this.plot_torque_outer.push(parseFloat(tau_out.toFixed(3)));
+        this.plot_torque_limit.push(2.80);
+
         if (this.plot_time.length > this.max_plot_points) {
             this.plot_time.shift();
             this.plot_gx.shift();
             this.plot_gy.shift();
             this.plot_gz.shift();
             this.plot_tasmg.shift();
+            this.plot_torque_inner.shift();
+            this.plot_torque_outer.shift();
+            this.plot_torque_limit.shift();
         }
 
         // Update UI every 5 steps (10 Hz refresh)
@@ -796,36 +1000,49 @@ class RPMScientificApp {
     }
 
     updateTelemetryDOM(tasmg, inst_g, a_cent, r_safe, shear_mPa, avg_gx, avg_gy, avg_gz, a_cent_envelope, bond_num) {
-        document.getElementById('metric-tasmg').textContent = tasmg.toFixed(4) + ' g';
-        document.getElementById('metric-inst-g').textContent = inst_g.toFixed(3) + ' g';
+        const elTasmg = document.getElementById('metric-tasmg');
+        const elInstG = document.getElementById('metric-inst-g');
+        const elTorqueIn = document.getElementById('metric-torque-inner');
+        const elTorqueOut = document.getElementById('metric-torque-outer');
+        const elMoi = document.getElementById('metric-moi');
+        const elSamples = document.getElementById('metric-samples');
 
-        if (this.experiment_domain === 'manufacturing') {
-            document.getElementById('metric-centrifugal').textContent = (a_cent_envelope !== undefined ? a_cent_envelope.toFixed(6) : '0.000028') + ' g';
-            document.getElementById('metric-safe-radius').textContent = (bond_num !== undefined ? bond_num.toExponential(2) : '3.5e-5') + ' (Bo ≪ 1)';
-        } else {
-            document.getElementById('metric-centrifugal').textContent = a_cent.toFixed(5) + ' g';
-            document.getElementById('metric-safe-radius').textContent = r_safe.toFixed(1) + ' cm';
+        if (elTasmg) elTasmg.textContent = tasmg.toFixed(4) + ' g';
+        if (elInstG) elInstG.textContent = inst_g.toFixed(3) + ' g';
+        if (elTorqueIn) elTorqueIn.textContent = this.inst_torque_inner.toFixed(2) + ' N·m';
+        if (elTorqueOut) elTorqueOut.textContent = this.inst_torque_outer.toFixed(2) + ' N·m';
+        if (elMoi && this.currentMOI) elMoi.textContent = `${this.currentMOI.I_xx.toFixed(3)} / ${this.currentMOI.I_yy.toFixed(3)} kg·m²`;
+        if (elSamples) elSamples.textContent = this.samples.toLocaleString();
+
+        const elLiveIn = document.getElementById('live-torque-inner');
+        const elLiveOut = document.getElementById('live-torque-outer');
+        const elLivePeak = document.getElementById('live-torque-peak');
+        const elLiveSf = document.getElementById('live-sf-badge');
+
+        if (elLiveIn) elLiveIn.textContent = this.inst_torque_inner.toFixed(2) + ' N·m';
+        if (elLiveOut) elLiveOut.textContent = this.inst_torque_outer.toFixed(2) + ' N·m';
+        if (elLivePeak) elLivePeak.textContent = this.peak_torque_observed.toFixed(2) + ' N·m';
+        if (elLiveSf) {
+            const sf = 2.80 / Math.max(this.peak_torque_observed, 0.05);
+            elLiveSf.textContent = `SF: ${sf.toFixed(1)}x`;
+            elLiveSf.style.color = sf >= 2.0 ? 'var(--accent-green)' : 'var(--accent-red)';
         }
 
-        document.getElementById('metric-shear').textContent = shear_mPa.toFixed(2) + ' mPa';
-        document.getElementById('metric-samples').textContent = this.samples.toLocaleString();
+        const elPhi = document.getElementById('display-phi');
+        const elPsi = document.getElementById('display-psi');
+        const elOmegaPhi = document.getElementById('display-omega-phi');
+        const elOmegaPsi = document.getElementById('display-omega-psi');
+        const elGamma = document.getElementById('display-gamma');
+        const elTilts = document.getElementById('display-tilts');
 
-        document.getElementById('display-phi').textContent = this.phi_deg.toFixed(1) + '°';
-        document.getElementById('display-psi').textContent = this.psi_deg.toFixed(1) + '°';
-        document.getElementById('display-omega-phi').textContent = this.omega_phi_rpm.toFixed(2) + ' RPM';
-        document.getElementById('display-omega-psi').textContent = this.omega_psi_rpm.toFixed(2) + ' RPM';
+        if (elPhi) elPhi.textContent = this.phi_deg.toFixed(1) + '°';
+        if (elPsi) elPsi.textContent = this.psi_deg.toFixed(1) + '°';
+        if (elOmegaPhi) elOmegaPhi.textContent = this.omega_phi_rpm.toFixed(2) + ' RPM';
+        if (elOmegaPsi) elOmegaPsi.textContent = this.omega_psi_rpm.toFixed(2) + ' RPM';
 
         const gamma = (this.omega_phi_rpm > 0) ? (this.omega_psi_rpm / this.omega_phi_rpm).toFixed(3) : '1.146';
-        document.getElementById('display-gamma').textContent = gamma;
-        document.getElementById('display-tilts').textContent = `${this.innerTilt_deg.toFixed(1)}° / ${this.outerTilt_deg.toFixed(1)}°`;
-
-        // Hardware gravity cards (v1)
-        document.getElementById('card-gx').textContent = this.inst_gx.toFixed(3);
-        document.getElementById('card-gy').textContent = this.inst_gy.toFixed(3);
-        document.getElementById('card-gz').textContent = this.inst_gz.toFixed(3);
-        document.getElementById('card-avg-gx').textContent = avg_gx.toFixed(3);
-        document.getElementById('card-avg-gy').textContent = avg_gy.toFixed(3);
-        document.getElementById('card-avg-gz').textContent = avg_gz.toFixed(3);
+        if (elGamma) elGamma.textContent = gamma;
+        if (elTilts) elTilts.textContent = `${this.innerTilt_deg.toFixed(1)}° / ${this.outerTilt_deg.toFixed(1)}°`;
 
         // Update sample points table cells
         for (const pt of this.samplePoints) {
@@ -913,19 +1130,14 @@ class RPMScientificApp {
             this.tsChart.update('none');
         }
 
-        // Update FDM only if canvas is visible
-        const fdmCanvas = document.getElementById('shear-canvas');
-        if (this.fdmChart && fdmCanvas && fdmCanvas.offsetParent !== null) {
-            const rLabels = [];
-            const uVals = [];
-            const dr = (this.chamber_radius_m * 100.0) / (this.fluid_N - 1);
-            for (let i = 0; i < this.fluid_N; i++) {
-                rLabels.push((i * dr).toFixed(1));
-                uVals.push((this.fluid_u[i] * 1000.0).toFixed(2));
-            }
-            this.fdmChart.data.labels = rLabels;
-            this.fdmChart.data.datasets[0].data = uVals;
-            this.fdmChart.update('none');
+        // Update Dynamic Motor Torque Chart
+        const torqueCanvas = document.getElementById('torque-canvas');
+        if (this.torqueChart && torqueCanvas && torqueCanvas.offsetParent !== null) {
+            this.torqueChart.data.labels = this.plot_time;
+            this.torqueChart.data.datasets[0].data = this.plot_torque_inner;
+            this.torqueChart.data.datasets[1].data = this.plot_torque_outer;
+            this.torqueChart.data.datasets[2].data = this.plot_torque_limit;
+            this.torqueChart.update('none');
         }
 
         // Update Centrifugal Gradient only if canvas is visible
@@ -1001,7 +1213,7 @@ class RPMScientificApp {
        ========================================================================= */
     exportCSV() {
         if (this.telemetry_history.length === 0) {
-            alert('No simulation records logged yet.');
+            showToast('No simulation records logged yet.', 'warn');
             return;
         }
 
@@ -1253,20 +1465,20 @@ function updatePayloadDimensions() {
 }
 
 function updateFrameClearances() {
-    alert('CAD Clearances updated: Inner frame opening 250x250 mm, Outer frame opening 400x400 mm strictly verified against Final_Drawing.pdf DWG 02.');
+    showToast('CAD Clearances updated: Inner frame opening 250x250 mm, Outer frame opening 400x400 mm verified against DWG 02.', 'info');
 }
 
 // WebSerial (from v1)
 async function connectWebSerial() {
     if (!('serial' in navigator)) {
-        alert('WebSerial API is not supported in this browser. Please use Chrome, Edge, or Opera.');
+        showToast('WebSerial API is not supported in this browser. Please use Chrome, Edge, or Opera.', 'warn');
         return;
     }
     try {
         const port = await navigator.serial.requestPort();
         await port.open({ baudRate: 115200 });
-        alert('WebSerial connected successfully to RPM motor controller at 115200 baud.');
-        document.getElementById('ws-status-badge').textContent = '● WebSerial Connected (115200)';
+        showToast('WebSerial connected successfully to RPM motor controller at 115200 baud.', 'info');
+        document.getElementById('ws-status-badge').textContent = 'WebSerial Connected (115200)';
         document.getElementById('ws-status-badge').style.color = 'var(--accent-green)';
     } catch (err) {
         console.warn('WebSerial connection cancelled or failed:', err);
@@ -1301,9 +1513,40 @@ function toggleCitationsModal(show) {
     }
 }
 
+// Architecture & Wiring Schematic Modal
+function toggleSchematicModal(show) {
+    const modal = document.getElementById('schematic-modal');
+    if (modal) modal.style.display = show ? 'flex' : 'none';
+}
+
+// Custom Mechanics Apply Trigger
+function applyCustomMechanicsParameters() {
+    if (window.app) {
+        window.app.applyCustomMechanicsParameters(true);
+    }
+}
+
+// Non-blocking Toast Notification
+function showToast(message, type = 'info') {
+    let toast = document.getElementById('app-toast');
+    if (!toast) {
+        toast = document.createElement('div');
+        toast.id = 'app-toast';
+        document.body.appendChild(toast);
+    }
+    toast.textContent = message;
+    toast.className = `toast-visible toast-${type}`;
+    clearTimeout(window._toastTimeout);
+    window._toastTimeout = setTimeout(() => {
+        toast.className = '';
+    }, 4500);
+}
+
 // Initialize on page load and trigger KaTeX typesetter
 window.addEventListener('load', () => {
-    window.app = new RPMScientificApp();
+    if (!window.app) {
+        window.app = new RPMScientificApp();
+    }
     if (typeof renderMathInElement === 'function') {
         try {
             renderMathInElement(document.body, {
