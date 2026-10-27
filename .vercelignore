@@ -1,0 +1,24 @@
+# Exclude non-web assets from Vercel deployment
+*.pptx
+*.pdf
+LITERATURE/
+Model/
+resource/
+Matlab/
+programming/Digital_Twin/logs/
+programming/Digital_Twin/Figure/
+programming/Digital_Twin/venv/
+programming/Digital_Twin/venv_test/
+programming/Digital_Twin/tests/
+programming/Digital_Twin/firmware/
+programming/Digital_Twin/deploy/
+programming/Digital_Twin/.devcontainer/
+programming/Digital_Twin/database/
+programming/Digital_Twin/unity/
+*.dylib
+*.so
+*.pyc
+__pycache__/
+.git/
+.venv/
+venv/

@@ -30,3 +30,5 @@ venv/
 *.log
 .gitnexus
 .claude/
+.vercel
+.env*.local
