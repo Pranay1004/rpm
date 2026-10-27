@@ -1124,6 +1124,13 @@ async def get_status():
     }
 
 
+@app.get("/api/state")
+async def get_state():
+    """Get complete simulation telemetry and biometric physics state."""
+    state = engine.step()
+    return state.model_dump()
+
+
 @app.get("/api/connections")
 async def get_connections():
     """Get available hardware connections."""
