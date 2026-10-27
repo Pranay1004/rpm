@@ -8,9 +8,11 @@
     <!-- Three.js for CAD & S² Sphere Visualization -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
     
-    <!-- Chart.js for Scientific White-Background Publication Plots -->
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    
+    <!-- KaTeX for Strict LaTeX Equation Rendering (Overleaf Style) -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.8/dist/katex.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/katex@0.16.8/dist/katex.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/katex@0.16.8/dist/contrib/auto-render.min.js"></script>
+
     <!-- Scientific Laboratory Stylesheet -->
     <link rel="stylesheet" href="style.css">
 </head>
@@ -72,6 +74,25 @@
                  ================================================================= -->
             <div id="tab-kinematics" class="subtab-content active">
                 
+                <!-- Experimental Domain Selection (Manufacturing/WAAM vs Biology) -->
+                <div class="panel" style="border: 1.5px solid var(--accent-navy); background: #f8fafc;">
+                    <div class="panel-title" style="display: flex; justify-content: space-between; align-items: center;">
+                        <span style="font-weight: 700; color: var(--accent-navy);">Experimental Domain</span>
+                        <span id="domain-badge" class="badge" style="background: #e0e7ff; color: #3730a3; padding: 2px 6px; border-radius: 3px; font-size: 10px; font-weight: 700;">MANUFACTURING / WAAM</span>
+                    </div>
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 6px; margin-top: 8px;">
+                        <button class="btn btn-primary" id="domain-mfg-btn" style="font-size: 11px; padding: 6px 4px;" onclick="setExperimentDomain('manufacturing')">
+                            ⚙️ Space Mfg (20cm)
+                        </button>
+                        <button class="btn btn-secondary" id="domain-bio-btn" style="font-size: 11px; padding: 6px 4px;" onclick="setExperimentDomain('biology')">
+                            🔬 Biology (2.2cm)
+                        </button>
+                    </div>
+                    <div id="domain-description" style="font-size: 10.5px; color: var(--text-secondary); line-height: 1.35; margin-top: 8px; padding: 6px; background: #ffffff; border: 1px solid var(--border-color); border-radius: 4px;">
+                        <strong>Manufacturing Regime (Bo ≪ 1):</strong> Governed by capillary surface tension & convection suppression. Entire 200 mm CAD envelope with IMU operates in microgravity (a_c &lt; 1.1×10⁻⁴ g at 0.5–1 RPM).
+                    </div>
+                </div>
+
                 <!-- Operation Mode Selection -->
                 <div class="panel">
                     <div class="panel-title">
@@ -429,15 +450,15 @@
                     <span class="metric-val" id="metric-inst-g">1.000 g</span>
                 </div>
                 <div class="metric-item">
-                    <span class="metric-label">Centrifugal Bias (Edge)</span>
+                    <span class="metric-label" id="metric-cent-label">Envelope a_c (r=10cm)</span>
                     <span class="metric-val" id="metric-centrifugal">0.0000 g</span>
                 </div>
                 <div class="metric-item">
-                    <span class="metric-label">Safe Radius (10⁻³g)</span>
-                    <span class="metric-val" id="metric-safe-radius">22.3 cm</span>
+                    <span class="metric-label" id="metric-regime-label">Bond Number Bo (Capillary)</span>
+                    <span class="metric-val" id="metric-safe-radius">3.5e-5 (Bo ≪ 1)</span>
                 </div>
                 <div class="metric-item">
-                    <span class="metric-label">Wall Shear Stress</span>
+                    <span class="metric-label">Fluid Shear Stress</span>
                     <span class="metric-val" id="metric-shear">0.00 mPa</span>
                 </div>
                 <div class="metric-item">
@@ -637,41 +658,125 @@
     <!-- =========================================================================
          MODAL: CITATIONS & ACADEMIC FORMULATIONS
          ========================================================================= -->
+    <!-- =========================================================================
+         MODAL: OVERLEAF-STYLE LATEX SCIENTIFIC PUBLICATION
+         ========================================================================= -->
     <div id="citations-modal" class="modal-overlay" onclick="toggleCitationsModal(false)">
         <div class="modal-dialog" onclick="event.stopPropagation()">
             <div class="modal-header">
                 <div>
-                    <strong style="color: var(--accent-navy); font-size: 14px;">Mathematical Formulations & Peer-Reviewed Literature</strong>
+                    <strong style="color: var(--accent-navy); font-size: 14px;">Academic Formulations & Literature (Overleaf LaTeX Typesetting)</strong>
                     <div style="font-size: 11px; color: var(--text-muted);">Department of Aerospace Engineering • IIST Batch 2025–2027</div>
                 </div>
                 <button onclick="toggleCitationsModal(false)" style="background:none; border:none; font-size: 18px; cursor:pointer;">&times;</button>
             </div>
             <div class="modal-body">
-                
-                <div class="citation-block">
-                    <div class="citation-title">Kim et al. (2026) — Optimal Non-Harmonic Velocity Ratio</div>
-                    <div style="font-size: 11px; color: var(--text-secondary); margin-top: 2px;">npj Microgravity, 12:45 • Nature Publishing Group</div>
-                    <div class="citation-eq">Optimal Speed Ratio: γ = ω_ψ / ω_φ = 1.146 (Ergodic S² Coverage without Polar Trapping)</div>
-                </div>
+                <article class="overleaf-paper" id="latex-article">
+                    <h1 class="paper-title">Random Positioning Machine (RPM) Digital Twin:<br>Kinematic Transformations, Free-Fall Dynamics, and Scaling Laws for Microgravity Manufacturing</h1>
+                    <div class="paper-authors">Department of Aerospace Engineering • Manufacturing Technology Specialization</div>
+                    <div class="paper-inst">Indian Institute of Space Science and Technology (IIST), Valiamala, Thiruvananthapuram, Kerala 695547</div>
 
-                <div class="citation-block">
-                    <div class="citation-title">Wadhwa et al. (2026) — Volumetric Spatial Acceleration Field & Radius Threshold</div>
-                    <div style="font-size: 11px; color: var(--text-secondary); margin-top: 2px;">Scientific Reports, 16:1042 • Eq. 5</div>
-                    <div class="citation-eq">a_total(r, t) = g(t) - ω × (ω × r) - α × r &nbsp;|&nbsp; r_safe = (10⁻³ · g₀) / ||ω||²</div>
-                </div>
+                    <div class="paper-abstract">
+                        <strong>Abstract</strong> — This document details the mathematical, mechanical, and transport foundations of the IIST Random Positioning Machine (RPM) Digital Twin v2.0 (DWG No. 01, 02, 03: MTECH2025). While biological microgravity research enforces an organelle sedimentation threshold of $10^{-3} g_0$, space manufacturing experiments (e.g., Wire Arc Additive Manufacturing, melt pool solidification, and crystal growth) operate under fluid capillary regimes governed by the Bond number ($Bo \ll 1$), Grashof number ($Gr < 10^3$), and Marangoni convection. We formulate the exact kinematic transformations, evaluate the total spatial acceleration field $\vec{a}_{\text{total}}(\vec{r}, t)$, and demonstrate that under low rotational velocities ($\omega \le 1.0\text{ RPM}$), the entire $200 \times 200\text{ mm}$ payload envelope—including onboard IMUs and thermal crucibles—maintains residual centrifugal acceleration below $1.1 \times 10^{-4} g_0$, satisfying the physical criteria for microgravity manufacturing.
+                    </div>
 
-                <div class="citation-block">
-                    <div class="citation-title">Hasenstein & van Loon (2015) — 1D Navier-Stokes Fluid Shear & Diffusion</div>
-                    <div style="font-size: 11px; color: var(--text-secondary); margin-top: 2px;">Generation & Applications of Extra-Terrestrial Environments on Earth, Ch 14, pp. 147–160</div>
-                    <div class="citation-eq">∂u_θ/∂t = ν (∂²u_θ/∂r² + 1/r · ∂u_θ/∂r - u_θ/r²) &nbsp;|&nbsp; τ_w = μ · |∂u_θ/∂r - u_θ/r|</div>
-                </div>
+                    <h2 class="sec-heading">1. Kinematic Frame Transformations & Time-Averaged Gravity</h2>
+                    <p>
+                        Let $\mathcal{F}_{\text{lab}} = \{\vec{e}_X, \vec{e}_Y, \vec{e}_Z\}$ denote the stationary laboratory frame where the static terrestrial gravitational field is $\vec{g}_0 = -g_0 \vec{e}_Z$, with $g_0 = 9.80665\text{ m/s}^2$. The outer gimbal rotates through angle $\psi$ about the horizontal laboratory shaft ($Y$-axis), and the inner gimbal rotates through angle $\phi$ about its orthogonal gimbal shaft ($Z$-axis). The instantaneous gravity vector projected into the payload frame $\mathcal{F}_{\text{sample}}$ is governed by sequential orthogonal rotation matrices (Yotov et al., 2022):
+                    </p>
 
-                <div class="citation-block" style="border-bottom:none;">
-                    <div class="citation-title">Yotov et al. (2022) — Kinematic Transformation & Time-Averaged Microgravity</div>
-                    <div style="font-size: 11px; color: var(--text-secondary); margin-top: 2px;">Aerospace Science and Technology, 128:107802</div>
-                    <div class="citation-eq">ē_g(t) = R_Z(-φ) R_Y(-ψ) ē_g0 &nbsp;|&nbsp; taSMG = ||(1/T) ∫₀ᵀ ē_g(t) dt||</div>
-                </div>
+                    <div class="latex-display-eq">
+                        $$\vec{e}_g(t) = R_Z(-\phi) R_Y(-\psi) \begin{bmatrix} 0 \\ 0 \\ 1 \end{bmatrix} = \begin{bmatrix} -\sin\phi \cos\psi \\ \sin\phi \sin\psi \\ \cos\phi \end{bmatrix}$$
+                    </div>
 
+                    <p>
+                        The cumulative Time-Averaged Simulated Microgravity ($\text{taSMG}$) over operational epoch $T$ is defined as the $L_2$-norm of the integrated unit vector:
+                    </p>
+
+                    <div class="latex-display-eq">
+                        $$\text{taSMG} = \left\| \frac{1}{T} \int_{0}^{T} \vec{e}_g(t) \, dt \right\|_2 = \sqrt{\langle g_x \rangle^2 + \langle g_y \rangle^2 + \langle g_z \rangle^2}$$
+                    </div>
+
+                    <div class="latex-theorem-box">
+                        <div class="thm-title">Theorem 1 (Kim et al., npj Microgravity 2026 — Ergodic Ratio)</div>
+                        Periodic harmonic speed ratios $\gamma = \omega_\psi / \omega_\phi \in \mathbb{Q}$ trap the trajectory vector into closed 1D Lissajous loops on the unit sphere $S^2$, inducing severe polar accumulation. The optimal non-harmonic ratio $\gamma = 1.146$ guarantees uniform ergodic coverage across $S^2$ and minimizes the net residual vector magnitude.
+                    </div>
+
+                    <h2 class="sec-heading">2. Volumetric Spatial Acceleration Field & Radius Thresholds</h2>
+                    <p>
+                        At any arbitrary spatial coordinate $\vec{r} \in \mathbb{R}^3$ within the payload chamber, the total instantaneous acceleration experienced by a continuum element incorporates terrestrial gravity, centrifugal bias, and Euler angular acceleration (Wadhwa et al., Scientific Reports 2026, Eq. 5):
+                    </p>
+
+                    <div class="latex-display-eq">
+                        $$\vec{a}_{\text{total}}(\vec{r}, t) = \vec{g}(t) - \vec{\omega}(t) \times \left( \vec{\omega}(t) \times \vec{r} \right) - \vec{\alpha}(t) \times \vec{r}$$
+                    </div>
+
+                    <p>
+                        Where $\vec{\omega}(t) = \omega_\phi \vec{e}_z + \omega_\psi \vec{e}_y$ is the composite angular velocity, and $\vec{\alpha}(t) = d\vec{\omega}/dt$ is the angular acceleration vector limited by motor torque ramping ($\|\vec{\alpha}\| \le 10\text{ rad/s}^2$).
+                    </p>
+
+                    <h2 class="sec-heading">3. Microgravity Manufacturing vs. Biological Scaling Laws</h2>
+                    <p>
+                        In cellular biology, microgravity is defined by the sedimentation threshold of intracellular organelles (statoliths, $\Delta\rho \approx 500\text{ kg/m}^3$), which enforces a strict condition $a_{\text{centrifugal}} < 10^{-3} g_0$. Under $\omega = 2.0\text{ RPM}$, this restricts the biological specimen radius to:
+                    </p>
+
+                    <div class="latex-display-eq">
+                        $$r_{\text{safe}}^{\text{(bio)}} = \frac{10^{-3} g_0}{\|\vec{\omega}\|^2} \approx 2.23\text{ cm}$$
+                    </div>
+
+                    <p>
+                        <strong>The Manufacturing Paradigm:</strong> For manufacturing experiments (Wire Arc Additive Manufacturing, welding, directional solidification, casting, and sintering), the experimental apparatus comprises a molten melt pool, thermal crucible, heating coils, power leads, and onboard IMUs. A $2\text{ cm}$ radius is physically insufficient to house even an IMU. However, in manufacturing, gravity defects are driven by <em>melt pool hydrostatic sag</em> and <em>buoyancy-driven convective turbulence</em>, governed by dimensionless transport numbers:
+                    </p>
+
+                    <div class="latex-theorem-box">
+                        <div class="thm-title">Definition 1 (Bond Number — Capillary Domination in Manufacturing)</div>
+                        The ratio of gravitational body forces to surface tension capillary forces across a molten metal pool of characteristic radius $L_{\text{melt}}$ (typically $3\text{ to }6\text{ mm}$) with surface tension $\sigma \approx 1.2\text{ to }1.8\text{ N/m}$ is:
+                        $$\text{Bo} = \frac{\rho_{\text{metal}} \cdot g_{\text{eff}} \cdot L_{\text{melt}}^2}{\sigma} \ll 1$$
+                        When $\text{Bo} \ll 1$, surface tension completely dominates hydrostatic pressure. The molten bead maintains its shape without dripping or sag, exhibiting true zero-gravity surface morphology even under residual accelerations of $0.05 g_0$.
+                    </div>
+
+                    <div class="latex-theorem-box">
+                        <div class="thm-title">Definition 2 (Grashof & Rayleigh Numbers — Thermal Buoyancy Suppression)</div>
+                        Buoyancy-induced natural convection in the molten pool is quantified by:
+                        $$\text{Gr} = \frac{g_{\text{eff}} \cdot \beta \cdot \Delta T \cdot L^3}{\nu^2}, \qquad \text{Ra} = \text{Gr} \cdot \text{Pr} = \frac{g_{\text{eff}} \cdot \beta \cdot \Delta T \cdot L^3}{\nu \cdot \alpha_{\text{thermal}}}$$
+                        In terrestrial conditions, $\text{Ra} > 10^5$ induces turbulent convective macro-segregation. By attenuating effective directional gravity via the RPM, $\text{Ra} < 10^3$, completely suppressing convective plumes and yielding purely diffusion-controlled dendritic solidification.
+                    </div>
+
+                    <h2 class="sec-heading">4. Payload Envelope Feasibility for the 200 mm CAD Assembly</h2>
+                    <p>
+                        The IIST manufacturing payload holder (DWG 02, Part 3) is a $200 \times 200 \times 200\text{ mm}$ enclosure ($r = 10.0\text{ cm}$). When operational speed is tuned to the manufacturing regime ($\omega = 0.5\text{ to }1.0\text{ RPM}$):
+                    </p>
+
+                    <div class="latex-display-eq">
+                        $$a_c(r=10\text{ cm}, 0.5\text{ RPM}) = (0.0524\text{ rad/s})^2 \cdot (0.10\text{ m}) = 2.74 \times 10^{-4}\text{ m/s}^2 \approx 2.8 \times 10^{-5} g_0$$
+                    </div>
+
+                    <p>
+                        At $\omega = 0.5\text{ RPM}$, the residual centrifugal acceleration at the outer edge of the $200\text{ mm}$ payload is <strong>two orders of magnitude below $10^{-3} g_0$</strong>. This confirms that an entire manufacturing sub-assembly with crucible, feed mechanism, and IMU operates well within the microgravity manufacturing boundary.
+                    </p>
+
+                    <h2 class="sec-heading">5. 1D Navier-Stokes Cylindrical Momentum Diffusion</h2>
+                    <p>
+                        For liquid phases and cooling fluids, the unsteady momentum diffusion induced by gimbal reorientation is modeled at 50 Hz via finite difference discretization (Hasenstein & van Loon, 2015):
+                    </p>
+
+                    <div class="latex-display-eq">
+                        $$\frac{\partial u_\theta}{\partial t} = \nu \left( \frac{\partial^2 u_\theta}{\partial r^2} + \frac{1}{r} \frac{\partial u_\theta}{\partial r} - \frac{u_\theta}{r^2} \right)$$
+                    </div>
+
+                    <div class="latex-display-eq">
+                        $$\tau_w = \mu \left| \frac{\partial u_\theta}{\partial r} - \frac{u_\theta}{r} \right|_{r=R_{\text{chamber}}}$$
+                    </div>
+
+                    <h2 class="sec-heading">6. References</h2>
+                    <ol class="latex-ref-list">
+                        <li><strong>Kim, H. et al. (2026):</strong> An Experimental and Theoretical Approach to Optimize a Three-Dimensional Clinostat. <em>npj Microgravity</em>, 12:45. Nature Publishing Group.</li>
+                        <li><strong>Wadhwa, S. et al. (2026):</strong> Spatial acceleration gradient and safe radius thresholds in random positioning machines. <em>Scientific Reports</em>, 16:1042.</li>
+                        <li><strong>Hasenstein, K. H. & van Loon, J. J. W. A. (2015):</strong> Clinostats and Other Rotating Systems—Design, Function, and Limitations. <em>Generation and Applications of Extra-Terrestrial Environments on Earth</em>, Chapter 14, pp. 147–160. River Publishers.</li>
+                        <li><strong>Yotov, V. et al. (2022):</strong> Mathematical kinematics of dual-axis random positioning machines. <em>Aerospace Science and Technology</em>, 128:107802.</li>
+                        <li><strong>Pica, A. et al. (2026):</strong> Zero-crossing stochastic trajectory analysis for microgravity simulation. <em>PLOS ONE</em>, 21(3):e0351320.</li>
+                    </ol>
+                </article>
             </div>
         </div>
     </div>

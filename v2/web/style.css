@@ -571,12 +571,12 @@ body {
     font-weight: 600;
 }
 
-/* Citations Modal */
+/* Citations & Equations Modal (Overleaf LaTeX Paper Layout) */
 .modal-overlay {
     position: fixed;
     top: 0; left: 0; right: 0; bottom: 0;
-    background: rgba(15, 23, 42, 0.45);
-    backdrop-filter: blur(4px);
+    background: rgba(15, 23, 42, 0.6);
+    backdrop-filter: blur(6px);
     z-index: 1000;
     display: none;
     align-items: center;
@@ -587,15 +587,15 @@ body {
     background: #ffffff;
     border: 1px solid var(--border-color);
     border-radius: 8px;
-    width: 720px;
-    max-width: 95vw;
-    box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+    width: 900px;
+    max-width: 96vw;
+    box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
     overflow: hidden;
 }
 
 .modal-header {
     background: #f8fafc;
-    padding: 14px 20px;
+    padding: 12px 20px;
     border-bottom: 1px solid var(--border-color);
     display: flex;
     justify-content: space-between;
@@ -603,29 +603,119 @@ body {
 }
 
 .modal-body {
-    padding: 20px;
-    max-height: 70vh;
+    padding: 0;
+    max-height: 80vh;
     overflow-y: auto;
 }
 
-.citation-block {
-    margin-bottom: 14px;
-    padding-bottom: 12px;
-    border-bottom: 1px solid #f1f5f9;
+/* =========================================================================
+   OVERLEAF LATEX ACADEMIC PAPER STYLING
+   ========================================================================= */
+.overleaf-paper {
+    font-family: "Latin Modern Roman", "Computer Modern", "Times New Roman", Times, serif;
+    color: #111827;
+    background: #ffffff;
+    padding: 36px 48px;
+    line-height: 1.65;
+    font-size: 13.5px;
 }
 
-.citation-title {
+.overleaf-paper .paper-title {
+    font-size: 21px;
     font-weight: 700;
-    color: var(--accent-navy);
+    text-align: center;
+    letter-spacing: 0.5px;
+    margin-bottom: 8px;
+    line-height: 1.3;
 }
 
-.citation-eq {
-    background: var(--bg-alt);
-    font-family: var(--font-mono);
-    padding: 6px 10px;
-    border-radius: 4px;
-    margin-top: 6px;
+.overleaf-paper .paper-authors {
+    text-align: center;
+    font-size: 13px;
+    font-style: italic;
+    color: #374151;
+    margin-bottom: 4px;
+}
+
+.overleaf-paper .paper-inst {
+    text-align: center;
+    font-size: 11.5px;
+    color: #4b5563;
+    margin-bottom: 22px;
+}
+
+.overleaf-paper .paper-abstract {
+    margin: 18px 24px 26px 24px;
+    padding: 14px 20px;
+    background: #fafafa;
+    border-top: 1px solid #d1d5db;
+    border-bottom: 1px solid #d1d5db;
+    font-size: 12.5px;
+    text-align: justify;
+}
+
+.overleaf-paper .paper-abstract strong {
+    font-family: var(--font-sans);
+    text-transform: uppercase;
     font-size: 11px;
+    letter-spacing: 1px;
+}
+
+.overleaf-paper .sec-heading {
+    font-size: 14.5px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.8px;
+    border-bottom: 1px solid #d1d5db;
+    padding-bottom: 4px;
+    margin-top: 26px;
+    margin-bottom: 12px;
+    color: #0f172a;
+}
+
+.overleaf-paper .subsec-heading {
+    font-size: 13.5px;
+    font-weight: 700;
+    margin-top: 16px;
+    margin-bottom: 8px;
+    color: #1e3a8a;
+}
+
+.latex-display-eq {
+    background: #fbfbfc;
+    border: 1px solid #e2e8f0;
+    border-radius: 4px;
+    padding: 14px 20px;
+    margin: 14px 0;
+    overflow-x: auto;
+    text-align: center;
+}
+
+.latex-theorem-box {
+    border-left: 3.5px solid #1e3a8a;
+    background: #f8fafc;
+    padding: 12px 18px;
+    margin: 14px 0;
+    border-radius: 0 4px 4px 0;
+}
+
+.latex-theorem-box .thm-title {
+    font-weight: 700;
+    font-family: var(--font-sans);
+    color: #1e3a8a;
+    font-size: 12px;
+    margin-bottom: 4px;
+}
+
+.latex-ref-list {
+    margin-top: 16px;
+    padding-left: 20px;
+    font-size: 11.5px;
+    color: #4b5563;
+}
+
+.latex-ref-list li {
+    margin-bottom: 8px;
 }
 
 @media (max-width: 1180px) {

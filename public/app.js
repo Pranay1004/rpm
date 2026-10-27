@@ -16,12 +16,27 @@ class RPMScientificApp {
         this.innerTilt_deg = 0.0;
         this.outerTilt_deg = 0.0;
 
-        this.omega_phi_rpm = 2.0;
-        this.omega_psi_rpm = 2.292;
-        this.target_omega_phi = 2.0;
-        this.target_omega_psi = 2.292;
-        this.base_inner_rpm = 2.0;
-        this.base_outer_rpm = 2.292;
+        this.omega_phi_rpm = 0.5;
+        this.omega_psi_rpm = 0.573;
+        this.target_omega_phi = 0.5;
+        this.target_omega_psi = 0.573;
+        this.base_inner_rpm = 0.5;
+        this.base_outer_rpm = 0.573;
+
+        // Experimental Domain: 'manufacturing' (Space Manufacturing / WAAM) or 'biology'
+        this.experiment_domain = 'manufacturing';
+        this.melt_L_mm = 5.0; // 5 mm weld pool
+        this.melt_rho = 7200.0; // kg/m³
+        this.melt_sigma = 1.4; // N/m
+        this.envelope_radius_m = 0.10; // 10 cm (200x200mm payload CAD DWG 02)
+        this.last_bond_number = 3.5e-5;
+
+        // Thermal & Rendering Optimization Flags (Prevents Browser Overheating)
+        this.lastCadTime = 0;
+        this.lastSphereTime = 0;
+        this.cadFpsInterval = 1000 / 30; // 30 FPS cap
+        this.sphereFpsInterval = 1000 / 30; // 30 FPS cap
+        this.shadowUpdateCounter = 0;
 
         // Acceleration limit (10 rad/s² per Slide 9/11) ~ 95.5 RPM/s
         this.max_alpha_rpm_s = 95.5;
@@ -125,11 +140,13 @@ class RPMScientificApp {
         this.camera.position.set(1.4, 1.1, 1.6);
         this.camera.lookAt(0.0, 0.45, 0.0);
 
-        this.renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true, preserveDrawingBuffer: true });
+        this.renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true, preserveDrawingBuffer: false, powerPreference: "high-performance" });
         this.renderer.setSize(container.clientWidth, container.clientHeight);
-        this.renderer.setPixelRatio(window.devicePixelRatio || 1);
+        this.renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 1.5));
         this.renderer.shadowMap.enabled = true;
         this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+        this.renderer.shadowMap.autoUpdate = false; // Freeze dynamic shadow passes to eliminate GPU overheating
+        this.renderer.shadowMap.needsUpdate = true;
         container.appendChild(this.renderer.domElement);
 
         // Lighting
@@ -165,12 +182,15 @@ class RPMScientificApp {
             this.renderer.setSize(container.clientWidth, container.clientHeight);
         });
 
-        // Render loop
-        const animate = () => {
+        // Render loop (Throttled to 30 FPS with tab dormancy check to prevent GPU heating)
+        const animate = (timestamp) => {
             requestAnimationFrame(animate);
+            if (document.hidden) return;
+            if (timestamp - this.lastCadTime < this.cadFpsInterval) return;
+            this.lastCadTime = timestamp;
             this.renderer.render(this.scene, this.camera);
         };
-        animate();
+        requestAnimationFrame(animate);
     }
 
     setupOrbitControls(container, camera) {
@@ -232,9 +252,9 @@ class RPMScientificApp {
         this.sphereCamera.position.set(2.2, 1.6, 2.2);
         this.sphereCamera.lookAt(0, 0, 0);
 
-        this.sphereRenderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: false });
+        this.sphereRenderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: false, powerPreference: "low-power" });
         this.sphereRenderer.setSize(width, height);
-        this.sphereRenderer.setPixelRatio(window.devicePixelRatio || 1);
+        this.sphereRenderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 1.5));
 
         // Wireframe Unit Sphere (S²)
         const sphereGeom = new THREE.SphereGeometry(1.0, 24, 16);
@@ -314,14 +334,19 @@ class RPMScientificApp {
 
         window.addEventListener('mouseup', () => { isSphereDragging = false; });
 
-        // Sphere render loop
-        const animateSphere = () => {
+        // Sphere render loop (Throttled to 30 FPS and only rendered when Trajectory tab is visible)
+        const animateSphere = (timestamp) => {
             requestAnimationFrame(animateSphere);
+            if (document.hidden) return;
+            const trajTab = document.getElementById('tab-kinematics');
+            if (trajTab && !trajTab.classList.contains('active')) return;
+            if (timestamp - this.lastSphereTime < this.sphereFpsInterval) return;
+            this.lastSphereTime = timestamp;
             if (this.sphereRenderer && this.sphereScene && this.sphereCamera) {
                 this.sphereRenderer.render(this.sphereScene, this.sphereCamera);
             }
         };
-        animateSphere();
+        requestAnimationFrame(animateSphere);
     }
 
     updateSphereTrajectory(gx, gy, gz) {
@@ -669,8 +694,18 @@ class RPMScientificApp {
         // Safe radius threshold r_safe = (10^-3 * g0) / ||omega||^2
         const r_safe_cm = (0.001 * g0) / (omega_norm**2 + 1e-12) * 100.0;
 
-        // Centrifugal acceleration at boundary
+        // Centrifugal acceleration at chamber boundary (biology)
         const a_cent_edge_g = (omega_norm**2 * this.chamber_radius_m) / g0;
+
+        // Space Manufacturing / WAAM 200 mm CAD envelope edge (r = 10 cm = 0.10 m)
+        const envelope_r_m = 0.10;
+        const a_cent_envelope_g = (omega_norm**2 * envelope_r_m) / g0;
+        const g_eff = Math.max(a_cent_envelope_g * g0, 1e-6);
+
+        // Bond Number: Bo = (rho * g_eff * L_melt^2) / sigma
+        const L_m = this.melt_L_mm / 1000.0;
+        const bond_number = (this.melt_rho * g_eff * (L_m**2)) / this.melt_sigma;
+        this.last_bond_number = bond_number;
 
         // Hasenstein & van Loon (2015) 1D Navier-Stokes FDM
         const dr = this.chamber_radius_m / (this.fluid_N - 1);
@@ -702,9 +737,13 @@ class RPMScientificApp {
             pt.tasmg = pt.sumG / pt.samples;
         }
 
-        // Update CAD Model
+        // Update CAD Model with throttled shadow pass
         if (this.cadAssembly) {
             this.cadAssembly.updateRotations(this.phi_deg, this.psi_deg);
+            this.shadowUpdateCounter++;
+            if (this.shadowUpdateCounter % 15 === 0 && this.renderer && this.renderer.shadowMap) {
+                this.renderer.shadowMap.needsUpdate = true; // Update shadows at 3.3 Hz rather than 120 Hz
+            }
         }
 
         // Update S² Sphere plot
@@ -745,16 +784,23 @@ class RPMScientificApp {
 
         // Update UI every 5 steps (10 Hz refresh)
         if (this.samples % 5 === 0) {
-            this.updateTelemetryDOM(this.tasmg, inst_g, a_cent_edge_g, r_safe_cm, this.last_shear_stress, avg_gx, avg_gy, avg_gz);
+            this.updateTelemetryDOM(this.tasmg, inst_g, a_cent_edge_g, r_safe_cm, this.last_shear_stress, avg_gx, avg_gy, avg_gz, a_cent_envelope_g, bond_number);
             this.updateCharts(omega_norm);
         }
     }
 
-    updateTelemetryDOM(tasmg, inst_g, a_cent, r_safe, shear_mPa, avg_gx, avg_gy, avg_gz) {
+    updateTelemetryDOM(tasmg, inst_g, a_cent, r_safe, shear_mPa, avg_gx, avg_gy, avg_gz, a_cent_envelope, bond_num) {
         document.getElementById('metric-tasmg').textContent = tasmg.toFixed(4) + ' g';
         document.getElementById('metric-inst-g').textContent = inst_g.toFixed(3) + ' g';
-        document.getElementById('metric-centrifugal').textContent = a_cent.toFixed(5) + ' g';
-        document.getElementById('metric-safe-radius').textContent = r_safe.toFixed(1) + ' cm';
+
+        if (this.experiment_domain === 'manufacturing') {
+            document.getElementById('metric-centrifugal').textContent = (a_cent_envelope !== undefined ? a_cent_envelope.toFixed(6) : '0.000028') + ' g';
+            document.getElementById('metric-safe-radius').textContent = (bond_num !== undefined ? bond_num.toExponential(2) : '3.5e-5') + ' (Bo ≪ 1)';
+        } else {
+            document.getElementById('metric-centrifugal').textContent = a_cent.toFixed(5) + ' g';
+            document.getElementById('metric-safe-radius').textContent = r_safe.toFixed(1) + ' cm';
+        }
+
         document.getElementById('metric-shear').textContent = shear_mPa.toFixed(2) + ' mPa';
         document.getElementById('metric-samples').textContent = this.samples.toLocaleString();
 
@@ -784,9 +830,75 @@ class RPMScientificApp {
         }
     }
 
+    setExperimentDomain(domain) {
+        this.experiment_domain = domain;
+        const mfgBtn = document.getElementById('domain-mfg-btn');
+        const bioBtn = document.getElementById('domain-bio-btn');
+        const badge = document.getElementById('domain-badge');
+        const desc = document.getElementById('domain-description');
+        const centLabel = document.getElementById('metric-cent-label');
+        const regimeLabel = document.getElementById('metric-regime-label');
+
+        if (domain === 'manufacturing') {
+            if (mfgBtn) mfgBtn.className = 'btn btn-primary';
+            if (bioBtn) bioBtn.className = 'btn btn-secondary';
+            if (badge) {
+                badge.textContent = 'MANUFACTURING / WAAM';
+                badge.style.background = '#e0e7ff';
+                badge.style.color = '#3730a3';
+            }
+            if (desc) {
+                desc.innerHTML = '<strong>Manufacturing Regime (Bo ≪ 1):</strong> Governed by capillary surface tension & convection suppression. Entire 200 mm CAD envelope with IMU operates in microgravity (a_c &lt; 1.1×10⁻⁴ g at 0.5–1 RPM).';
+            }
+            if (centLabel) centLabel.textContent = 'Envelope a_c (r=10cm)';
+            if (regimeLabel) regimeLabel.textContent = 'Bond Number Bo (Capillary)';
+
+            // Set recommended low-speed manufacturing presets (Kim ergodic ratio 1.146)
+            this.base_inner_rpm = 0.5;
+            this.base_outer_rpm = 0.573;
+            const innerSlider = document.getElementById('inner-rpm-slider');
+            const outerSlider = document.getElementById('outer-rpm-slider');
+            if (innerSlider) innerSlider.value = 0.5;
+            if (outerSlider) outerSlider.value = 0.573;
+            const innerVal = document.getElementById('inner-rpm-val');
+            const outerVal = document.getElementById('outer-rpm-val');
+            if (innerVal) innerVal.textContent = '0.5 RPM';
+            if (outerVal) outerVal.textContent = '0.6 RPM';
+            this.updateTargetSpeeds();
+        } else {
+            if (mfgBtn) mfgBtn.className = 'btn btn-secondary';
+            if (bioBtn) bioBtn.className = 'btn btn-primary';
+            if (badge) {
+                badge.textContent = 'BIOLOGY (SEDIMENTATION)';
+                badge.style.background = '#fef3c7';
+                badge.style.color = '#92400e';
+            }
+            if (desc) {
+                desc.innerHTML = '<strong>Biological Regime:</strong> Governed by cellular organelle sedimentation. Constrained to safe radius r &le; 2.2 cm at 2.0 RPM (a_c &lt; 10⁻³ g).';
+            }
+            if (centLabel) centLabel.textContent = 'Centrifugal Bias (Edge)';
+            if (regimeLabel) regimeLabel.textContent = 'Safe Radius (10⁻³g)';
+
+            this.base_inner_rpm = 2.0;
+            this.base_outer_rpm = 2.292;
+            const innerSlider = document.getElementById('inner-rpm-slider');
+            const outerSlider = document.getElementById('outer-rpm-slider');
+            if (innerSlider) innerSlider.value = 2.0;
+            if (outerSlider) outerSlider.value = 2.292;
+            const innerVal = document.getElementById('inner-rpm-val');
+            const outerVal = document.getElementById('outer-rpm-val');
+            if (innerVal) innerVal.textContent = '2.0 RPM';
+            if (outerVal) outerVal.textContent = '2.3 RPM';
+            this.updateTargetSpeeds();
+        }
+    }
+
     updateCharts(omega_norm) {
-        // Update Time-Series
-        if (this.tsChart) {
+        if (document.hidden) return;
+
+        // Update Time-Series only if canvas is visible
+        const tsCanvas = document.getElementById('timeseries-canvas');
+        if (this.tsChart && tsCanvas && tsCanvas.offsetParent !== null) {
             this.tsChart.data.labels = this.plot_time;
             this.tsChart.data.datasets[0].data = this.plot_gx;
             this.tsChart.data.datasets[1].data = this.plot_gy;
@@ -795,8 +907,9 @@ class RPMScientificApp {
             this.tsChart.update('none');
         }
 
-        // Update FDM
-        if (this.fdmChart) {
+        // Update FDM only if canvas is visible
+        const fdmCanvas = document.getElementById('shear-canvas');
+        if (this.fdmChart && fdmCanvas && fdmCanvas.offsetParent !== null) {
             const rLabels = [];
             const uVals = [];
             const dr = (this.chamber_radius_m * 100.0) / (this.fluid_N - 1);
@@ -809,8 +922,9 @@ class RPMScientificApp {
             this.fdmChart.update('none');
         }
 
-        // Update Centrifugal Gradient
-        if (this.centChart) {
+        // Update Centrifugal Gradient only if canvas is visible
+        const centCanvas = document.getElementById('centrifugal-canvas');
+        if (this.centChart && centCanvas && centCanvas.offsetParent !== null) {
             const centLabels = [];
             const centVals = [];
             const threshVals = [];
@@ -1153,13 +1267,50 @@ async function connectWebSerial() {
     }
 }
 
-// Citations Modal
-function toggleCitationsModal(show) {
-    const modal = document.getElementById('citations-modal');
-    if (modal) modal.style.display = show ? 'flex' : 'none';
+// Experimental Domain Switcher (Manufacturing vs Biology)
+function setExperimentDomain(domain) {
+    if (window.app) window.app.setExperimentDomain(domain);
 }
 
-// Initialize on page load
+// Citations Modal (Strict Overleaf LaTeX Rendering via KaTeX)
+function toggleCitationsModal(show) {
+    const modal = document.getElementById('citations-modal');
+    if (modal) {
+        modal.style.display = show ? 'flex' : 'none';
+        if (show && typeof renderMathInElement === 'function') {
+            try {
+                renderMathInElement(document.getElementById('latex-article') || modal, {
+                    delimiters: [
+                        { left: "$$", right: "$$", display: true },
+                        { left: "$", right: "$", display: false },
+                        { left: "\\(", right: "\\)", display: false },
+                        { left: "\\[", right: "\\]", display: true }
+                    ],
+                    throwOnError: false
+                });
+            } catch (err) {
+                console.warn('KaTeX auto-render note:', err);
+            }
+        }
+    }
+}
+
+// Initialize on page load and trigger KaTeX typesetter
 window.addEventListener('load', () => {
     window.app = new RPMScientificApp();
+    if (typeof renderMathInElement === 'function') {
+        try {
+            renderMathInElement(document.body, {
+                delimiters: [
+                    { left: "$$", right: "$$", display: true },
+                    { left: "$", right: "$", display: false },
+                    { left: "\\(", right: "\\)", display: false },
+                    { left: "\\[", right: "\\]", display: true }
+                ],
+                throwOnError: false
+            });
+        } catch (err) {
+            console.warn('KaTeX body render note:', err);
+        }
+    }
 });
