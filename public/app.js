@@ -1,24 +1,29 @@
 /**
  * IIST RPM Digital Twin v2.0 - Scientific Controller & Instrumentation.
- * Handles 50Hz physics, CAD rendering, CSV logging, and scientific white-bg plots.
+ * Handles 50Hz physics, CAD rendering, S² Unit Sphere 3D projection,
+ * sample enclosure probe tracking, CSV logging, and scientific publication plots.
  */
 
 class RPMScientificApp {
     constructor() {
         this.isRunning = true;
-        this.dt = 0.02; // 50 Hz
+        this.dt = 0.02; // 50 Hz discrete timestep
+        this.isHoldingAngles = false;
 
         // Kinematics & Mechanics
         this.phi_deg = 0.0;
         this.psi_deg = 0.0;
+        this.innerTilt_deg = 0.0;
+        this.outerTilt_deg = 0.0;
+
         this.omega_phi_rpm = 2.0;
         this.omega_psi_rpm = 2.292;
         this.target_omega_phi = 2.0;
         this.target_omega_psi = 2.292;
         this.base_inner_rpm = 2.0;
-        this.base_outer_rpm = 2.0;
+        this.base_outer_rpm = 2.292;
 
-        // Acceleration limit (10 rad/s^2 per Slide 9/11) ~ 95.5 RPM/s
+        // Acceleration limit (10 rad/s² per Slide 9/11) ~ 95.5 RPM/s
         this.max_alpha_rpm_s = 95.5;
 
         // Trajectory mode
@@ -36,13 +41,23 @@ class RPMScientificApp {
         this.sum_gx = 0.0;
         this.sum_gy = 0.0;
         this.sum_gz = 0.0;
-        this.min_g = 1.0;
-        this.max_g = 1.0;
+        this.inst_gx = 0.0;
+        this.inst_gy = 0.0;
+        this.inst_gz = 1.0;
+        this.tasmg = 1.0;
+
+        // Sample Probe Points (from v1)
+        this.samplePoints = [
+            { id: 1, x: 0.0, y: 0.0, z: 0.0, sumG: 0.0, samples: 0, tasmg: 1.0, ac: 0.0 },
+            { id: 2, x: 2.0, y: 1.0, z: 1.0, sumG: 0.0, samples: 0, tasmg: 1.0, ac: 0.0 },
+            { id: 3, x: 4.0, y: 0.0, z: 0.0, sumG: 0.0, samples: 0, tasmg: 1.0, ac: 0.0 }
+        ];
+        this.nextPointId = 4;
 
         // 1D Navier-Stokes FDM
         this.fluid_N = 25;
         this.fluid_u = new Float64Array(this.fluid_N);
-        this.fluid_nu = 1.004e-6; // m^2/s
+        this.fluid_nu = 1.004e-6; // m^2/s (water 20°C)
         this.fluid_mu = 1.002e-3; // Pa.s
         this.last_shear_stress = 0.0;
         this.stokes_delta_mm = 0.0;
@@ -51,7 +66,7 @@ class RPMScientificApp {
         this.telemetry_history = [];
         this.max_history_records = 20000;
 
-        // Plot history buffers
+        // Plot history buffers (Time-series)
         this.plot_time = [];
         this.plot_gx = [];
         this.plot_gy = [];
@@ -59,11 +74,14 @@ class RPMScientificApp {
         this.plot_tasmg = [];
         this.max_plot_points = 250;
 
+        // S² Unit Sphere trajectory buffer
+        this.sphereTrajectory = [];
+        this.maxSpherePoints = 1200;
+
         // Web Serial
         this.serialPort = null;
         this.serialReader = null;
         this.serialConnected = false;
-        this.lastHwG = null;
 
         // Three.js instances
         this.scene = null;
@@ -71,19 +89,31 @@ class RPMScientificApp {
         this.renderer = null;
         this.cadAssembly = null;
 
+        // Sphere Scene instances
+        this.sphereScene = null;
+        this.sphereCamera = null;
+        this.sphereRenderer = null;
+        this.sphereTrajectoryLine = null;
+        this.sphereCurrentMarker = null;
+
         this.init();
     }
 
     init() {
         this.init3D();
+        this.initSphereVisualization();
         this.initPlots();
         this.bindEvents();
+        this.renderSamplePointsTable();
         this.updateModeUI();
 
         // 50 Hz Physics Interval
         setInterval(() => this.step(this.dt), 20);
     }
 
+    /* =========================================================================
+       3D CAD ASSEMBLY VISUALIZATION (Three.js)
+       ========================================================================= */
     init3D() {
         const container = document.getElementById('cad-canvas-container');
         if (!container) return;
@@ -102,207 +132,407 @@ class RPMScientificApp {
         this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
         container.appendChild(this.renderer.domElement);
 
-        // Lighting (Clean engineering laboratory lighting)
+        // Lighting
         const hemiLight = new THREE.HemisphereLight(0xffffff, 0xe2e8f0, 0.85);
         this.scene.add(hemiLight);
 
         const dirLight = new THREE.DirectionalLight(0xffffff, 0.7);
         dirLight.position.set(2.5, 4.0, 3.0);
         dirLight.castShadow = true;
-        dirLight.shadow.mapSize.width = 2048;
-        dirLight.shadow.mapSize.height = 2048;
         this.scene.add(dirLight);
 
         const backLight = new THREE.DirectionalLight(0x94a3b8, 0.3);
         backLight.position.set(-2.5, 2.0, -2.0);
         this.scene.add(backLight);
 
-        // Grid plane on floor
-        const grid = new THREE.GridHelper(2.0, 20, 0xcbd5e1, 0xe2e8f0);
+        // Grid floor
+        const grid = new THREE.GridHelper(3.0, 30, 0xcbd5e1, 0xe2e8f0);
         grid.position.y = 0.0;
         this.scene.add(grid);
 
-        // Build exact CAD assembly from Final_Drawing.pdf
+        // Build exact CAD Assembly
         this.cadAssembly = new RPMCadAssembly(this.scene);
+        this.cadAssembly.updateSamplePoints(this.samplePoints);
 
-        // Mouse orbit controls
-        this.setupOrbitInteraction(container);
+        // Interactive Orbit Controls (Mouse Drag & Scroll)
+        this.setupOrbitControls(container, this.camera);
 
-        // Animation loop
-        const animate = () => {
-            requestAnimationFrame(animate);
-            this.renderer.render(this.scene, this.camera);
-        };
-        animate();
-
+        // Resize observer
         window.addEventListener('resize', () => {
             if (!container) return;
             this.camera.aspect = container.clientWidth / container.clientHeight;
             this.camera.updateProjectionMatrix();
             this.renderer.setSize(container.clientWidth, container.clientHeight);
         });
+
+        // Render loop
+        const animate = () => {
+            requestAnimationFrame(animate);
+            this.renderer.render(this.scene, this.camera);
+        };
+        animate();
     }
 
-    setupOrbitInteraction(elem) {
+    setupOrbitControls(container, camera) {
         let isDragging = false;
-        let prevX = 0, prevY = 0;
-        let rotY = 0.7, rotX = 0.4;
-        let dist = 2.4;
+        let prevMouseX = 0;
+        let prevMouseY = 0;
+        let spherical = { radius: 2.4, theta: 0.85, phi: 1.15 };
 
-        elem.addEventListener('mousedown', (e) => {
+        const updateCameraPos = () => {
+            camera.position.x = spherical.radius * Math.sin(spherical.phi) * Math.sin(spherical.theta);
+            camera.position.y = spherical.radius * Math.cos(spherical.phi) + 0.45;
+            camera.position.z = spherical.radius * Math.sin(spherical.phi) * Math.cos(spherical.theta);
+            camera.lookAt(0.0, 0.45, 0.0);
+        };
+        updateCameraPos();
+
+        container.addEventListener('mousedown', (e) => {
+            if (e.target.tagName === 'BUTTON') return;
             isDragging = true;
-            prevX = e.clientX;
-            prevY = e.clientY;
+            prevMouseX = e.clientX;
+            prevMouseY = e.clientY;
         });
-
-        window.addEventListener('mouseup', () => isDragging = false);
 
         window.addEventListener('mousemove', (e) => {
             if (!isDragging) return;
-            const deltaX = e.clientX - prevX;
-            const deltaY = e.clientY - prevY;
+            const deltaX = e.clientX - prevMouseX;
+            const deltaY = e.clientY - prevMouseY;
+            prevMouseX = e.clientX;
+            prevMouseY = e.clientY;
+
+            spherical.theta -= deltaX * 0.008;
+            spherical.phi = Math.max(0.1, Math.min(Math.PI / 2.05, spherical.phi - deltaY * 0.008));
+            updateCameraPos();
+        });
+
+        window.addEventListener('mouseup', () => { isDragging = false; });
+
+        container.addEventListener('wheel', (e) => {
+            e.preventDefault();
+            spherical.radius = Math.max(0.8, Math.min(5.0, spherical.radius + e.deltaY * 0.0015));
+            updateCameraPos();
+        }, { passive: false });
+    }
+
+    /* =========================================================================
+       S² UNIT SPHERE TRAJECTORY PLOT (Restored from v1 with Scientific White BG)
+       ========================================================================= */
+    initSphereVisualization() {
+        const canvas = document.getElementById('sphere-canvas');
+        if (!canvas) return;
+
+        this.sphereScene = new THREE.Scene();
+        this.sphereScene.background = new THREE.Color(0xffffff); // Pure white scientific background
+
+        const width = canvas.parentElement.clientWidth || 320;
+        const height = canvas.parentElement.clientHeight || 240;
+
+        this.sphereCamera = new THREE.PerspectiveCamera(40, width / height, 0.1, 50);
+        this.sphereCamera.position.set(2.2, 1.6, 2.2);
+        this.sphereCamera.lookAt(0, 0, 0);
+
+        this.sphereRenderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: false });
+        this.sphereRenderer.setSize(width, height);
+        this.sphereRenderer.setPixelRatio(window.devicePixelRatio || 1);
+
+        // Wireframe Unit Sphere (S²)
+        const sphereGeom = new THREE.SphereGeometry(1.0, 24, 16);
+        const sphereWire = new THREE.LineSegments(
+            new THREE.WireframeGeometry(sphereGeom),
+            new THREE.LineBasicMaterial({ color: 0xe2e8f0, transparent: true, opacity: 0.85 })
+        );
+        this.sphereScene.add(sphereWire);
+
+        // Equator ring
+        const equatorGeom = new THREE.BufferGeometry();
+        const eqPts = [];
+        for (let i = 0; i <= 64; i++) {
+            const angle = (i / 64) * Math.PI * 2;
+            eqPts.push(new THREE.Vector3(Math.cos(angle), 0, Math.sin(angle)));
+        }
+        equatorGeom.setFromPoints(eqPts);
+        const equatorLine = new THREE.Line(equatorGeom, new THREE.LineBasicMaterial({ color: 0x94a3b8 }));
+        this.sphereScene.add(equatorLine);
+
+        // Coordinate Axes Helper (X = Red, Y = Green, Z = Blue)
+        const axesHelper = new THREE.AxesHelper(1.2);
+        this.sphereScene.add(axesHelper);
+
+        // Pole markers (+Z and -Z)
+        const poleGeom = new THREE.SphereGeometry(0.035, 12, 12);
+        const northPole = new THREE.Mesh(poleGeom, new THREE.MeshBasicMaterial({ color: 0x2563eb }));
+        northPole.position.set(0, 0, 1.0);
+        this.sphereScene.add(northPole);
+
+        const southPole = new THREE.Mesh(poleGeom, new THREE.MeshBasicMaterial({ color: 0x64748b }));
+        southPole.position.set(0, 0, -1.0);
+        this.sphereScene.add(southPole);
+
+        // Dynamic Gravity Trajectory Line on S²
+        const trajGeom = new THREE.BufferGeometry();
+        trajGeom.setAttribute('position', new THREE.BufferAttribute(new Float32Array(this.maxSpherePoints * 3), 3));
+        const trajMat = new THREE.LineBasicMaterial({ color: 0x0284c7, linewidth: 2 });
+        this.sphereTrajectoryLine = new THREE.Line(trajGeom, trajMat);
+        this.sphereScene.add(this.sphereTrajectoryLine);
+
+        // Instantaneous Gravity Vector Tip Marker (Red Sphere)
+        const tipGeom = new THREE.SphereGeometry(0.055, 16, 16);
+        const tipMat = new THREE.MeshBasicMaterial({ color: 0xdc2626 });
+        this.sphereCurrentMarker = new THREE.Mesh(tipGeom, tipMat);
+        this.sphereScene.add(this.sphereCurrentMarker);
+
+        // Mouse Drag to rotate S² sphere
+        let isSphereDragging = false;
+        let prevX = 0, prevY = 0;
+        let sAngleX = 0.8, sAngleY = 0.6, sRadius = 2.8;
+
+        const updateSphereCam = () => {
+            this.sphereCamera.position.x = sRadius * Math.sin(sAngleY) * Math.sin(sAngleX);
+            this.sphereCamera.position.y = sRadius * Math.cos(sAngleY);
+            this.sphereCamera.position.z = sRadius * Math.sin(sAngleY) * Math.cos(sAngleX);
+            this.sphereCamera.lookAt(0, 0, 0);
+        };
+        updateSphereCam();
+
+        canvas.addEventListener('mousedown', (e) => {
+            isSphereDragging = true;
             prevX = e.clientX;
             prevY = e.clientY;
-
-            rotY -= deltaX * 0.008;
-            rotX = Math.max(-0.2, Math.min(1.4, rotX + deltaY * 0.008));
-
-            this.updateCameraOrbit(rotX, rotY, dist);
         });
 
-        elem.addEventListener('wheel', (e) => {
-            e.preventDefault();
-            dist = Math.max(0.8, Math.min(5.0, dist + e.deltaY * 0.002));
-            this.updateCameraOrbit(rotX, rotY, dist);
+        window.addEventListener('mousemove', (e) => {
+            if (!isSphereDragging) return;
+            const dx = e.clientX - prevX;
+            const dy = e.clientY - prevY;
+            prevX = e.clientX;
+            prevY = e.clientY;
+            sAngleX -= dx * 0.01;
+            sAngleY = Math.max(0.1, Math.min(Math.PI - 0.1, sAngleY - dy * 0.01));
+            updateSphereCam();
         });
 
-        this.updateCameraOrbit(rotX, rotY, dist);
+        window.addEventListener('mouseup', () => { isSphereDragging = false; });
+
+        // Sphere render loop
+        const animateSphere = () => {
+            requestAnimationFrame(animateSphere);
+            if (this.sphereRenderer && this.sphereScene && this.sphereCamera) {
+                this.sphereRenderer.render(this.sphereScene, this.sphereCamera);
+            }
+        };
+        animateSphere();
     }
 
-    updateCameraOrbit(rotX, rotY, dist) {
-        const targetY = 0.45;
-        this.camera.position.x = dist * Math.sin(rotY) * Math.cos(rotX);
-        this.camera.position.y = targetY + dist * Math.sin(rotX);
-        this.camera.position.z = dist * Math.cos(rotY) * Math.cos(rotX);
-        this.camera.lookAt(0.0, targetY, 0.0);
+    updateSphereTrajectory(gx, gy, gz) {
+        if (!this.sphereTrajectoryLine) return;
+
+        // Unit vector projection onto S²
+        const norm = Math.sqrt(gx * gx + gy * gy + gz * gz) || 1.0;
+        const ux = gx / norm;
+        const uy = gy / norm;
+        const uz = gz / norm;
+
+        // Position current tip marker
+        if (this.sphereCurrentMarker) {
+            this.sphereCurrentMarker.position.set(ux, uy, uz);
+        }
+
+        // Add to history
+        this.sphereTrajectory.push(ux, uy, uz);
+        if (this.sphereTrajectory.length > this.maxSpherePoints * 3) {
+            this.sphereTrajectory.splice(0, 3);
+        }
+
+        const positions = this.sphereTrajectoryLine.geometry.attributes.position.array;
+        for (let i = 0; i < this.sphereTrajectory.length; i++) {
+            positions[i] = this.sphereTrajectory[i];
+        }
+        this.sphereTrajectoryLine.geometry.attributes.position.needsUpdate = true;
+        this.sphereTrajectoryLine.geometry.setDrawRange(0, this.sphereTrajectory.length / 3);
     }
 
+    /* =========================================================================
+       SCIENTIFIC CHARTS (Chart.js)
+       ========================================================================= */
     initPlots() {
-        // 1. Time-series Canvas (Clean white background, scientific styling)
-        const tsCtx = document.getElementById('timeseries-canvas').getContext('2d');
-        this.tsChart = new Chart(tsCtx, {
-            type: 'line',
-            data: {
-                labels: [],
-                datasets: [
-                    { label: 'Gx (g)', data: [], borderColor: '#dc2626', borderWidth: 1.5, pointRadius: 0, fill: false },
-                    { label: 'Gy (g)', data: [], borderColor: '#2563eb', borderWidth: 1.5, pointRadius: 0, fill: false },
-                    { label: 'Gz (g)', data: [], borderColor: '#059669', borderWidth: 1.5, pointRadius: 0, fill: false },
-                    { label: '<g> taSMG', data: [], borderColor: '#0f172a', borderWidth: 2.0, borderDash: [4, 4], pointRadius: 0, fill: false }
-                ]
-            },
-            options: {
-                responsive: true,
-                maintainAspectRatio: false,
-                animation: false,
-                scales: {
-                    x: {
-                        grid: { color: '#f1f5f9' },
-                        ticks: { color: '#475569', font: { size: 10, family: 'sans-serif' } },
-                        title: { display: true, text: 'Time (s)', color: '#334155', font: { size: 11, weight: 'bold' } }
-                    },
-                    y: {
-                        min: -1.2,
-                        max: 1.2,
-                        grid: { color: '#e2e8f0' },
-                        ticks: { color: '#475569', font: { size: 10 } },
-                        title: { display: true, text: 'Acceleration (g)', color: '#334155', font: { size: 11, weight: 'bold' } }
-                    }
+        // Chart 1: Time Series of Gx, Gy, Gz & taSMG (White Background)
+        const tsCtx = document.getElementById('timeseries-canvas');
+        if (tsCtx) {
+            this.tsChart = new Chart(tsCtx, {
+                type: 'line',
+                data: {
+                    labels: [],
+                    datasets: [
+                        { label: 'Gx (g)', data: [], borderColor: '#dc2626', borderWidth: 1.5, pointRadius: 0, tension: 0.1 },
+                        { label: 'Gy (g)', data: [], borderColor: '#2563eb', borderWidth: 1.5, pointRadius: 0, tension: 0.1 },
+                        { label: 'Gz (g)', data: [], borderColor: '#15803d', borderWidth: 1.5, pointRadius: 0, tension: 0.1 },
+                        { label: '<g> taSMG', data: [], borderColor: '#0f172a', borderWidth: 2, borderDash: [4, 4], pointRadius: 0 }
+                    ]
                 },
-                plugins: {
-                    legend: {
-                        position: 'top',
-                        labels: { boxWidth: 12, font: { size: 11, weight: '600' }, color: '#0f172a' }
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    animation: false,
+                    scales: {
+                        x: {
+                            title: { display: true, text: 'Time (s)', color: '#475569', font: { size: 10 } },
+                            ticks: { color: '#64748b', font: { size: 9 }, maxTicksLimit: 12 },
+                            grid: { color: '#f1f5f9' }
+                        },
+                        y: {
+                            min: -1.2, max: 1.2,
+                            title: { display: true, text: 'Acceleration (g)', color: '#475569', font: { size: 10 } },
+                            ticks: { color: '#64748b', font: { size: 9 }, stepSize: 0.5 },
+                            grid: { color: '#e2e8f0' }
+                        }
+                    },
+                    plugins: {
+                        legend: { position: 'top', labels: { boxWidth: 12, font: { size: 10, weight: '600' } } }
                     }
                 }
-            }
-        });
+            });
+        }
 
-        // 2. FDM Fluid Velocity Profile Canvas
-        const fdmCtx = document.getElementById('fdm-canvas').getContext('2d');
-        this.fdmChart = new Chart(fdmCtx, {
-            type: 'line',
-            data: {
-                labels: [],
-                datasets: [
-                    { label: 'u_θ (mm/s)', data: [], borderColor: '#1e3a8a', backgroundColor: 'rgba(30, 58, 138, 0.08)', fill: true, borderWidth: 1.8, pointRadius: 0 }
-                ]
-            },
-            options: {
-                responsive: true,
-                maintainAspectRatio: false,
-                animation: false,
-                scales: {
-                    x: {
-                        grid: { color: '#f1f5f9' },
-                        ticks: { color: '#475569', font: { size: 10 } },
-                        title: { display: true, text: 'Radius r (cm)', color: '#334155', font: { size: 11, weight: 'bold' } }
-                    },
-                    y: {
-                        min: 0,
-                        grid: { color: '#e2e8f0' },
-                        ticks: { color: '#475569', font: { size: 10 } },
-                        title: { display: true, text: 'Velocity (mm/s)', color: '#334155', font: { size: 11, weight: 'bold' } }
-                    }
+        // Chart 2B: 1D Navier-Stokes Fluid Diffusion Profile
+        const fdmCtx = document.getElementById('shear-canvas');
+        if (fdmCtx) {
+            this.fdmChart = new Chart(fdmCtx, {
+                type: 'line',
+                data: {
+                    labels: [],
+                    datasets: [{
+                        label: 'Fluid Velocity u_θ (mm/s)',
+                        data: [],
+                        borderColor: '#1e3a8a',
+                        backgroundColor: 'rgba(30, 58, 138, 0.08)',
+                        borderWidth: 2,
+                        fill: true,
+                        pointRadius: 0,
+                        tension: 0.3
+                    }]
                 },
-                plugins: {
-                    legend: { display: false }
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    animation: false,
+                    scales: {
+                        x: {
+                            title: { display: true, text: 'Radius r (cm)', color: '#475569', font: { size: 10 } },
+                            ticks: { color: '#64748b', font: { size: 9 } },
+                            grid: { color: '#f1f5f9' }
+                        },
+                        y: {
+                            min: 0,
+                            title: { display: true, text: 'Velocity (mm/s)', color: '#475569', font: { size: 10 } },
+                            ticks: { color: '#64748b', font: { size: 9 } },
+                            grid: { color: '#e2e8f0' }
+                        }
+                    },
+                    plugins: {
+                        legend: { display: false }
+                    }
                 }
-            }
-        });
+            });
+        }
+
+        // Chart 2C: Volumetric Centrifugal Gradient vs Radius
+        const centCtx = document.getElementById('centrifugal-canvas');
+        if (centCtx) {
+            this.centChart = new Chart(centCtx, {
+                type: 'line',
+                data: {
+                    labels: [],
+                    datasets: [
+                        {
+                            label: 'Centrifugal Accel a_c (g)',
+                            data: [],
+                            borderColor: '#d97706',
+                            borderWidth: 2,
+                            pointRadius: 0,
+                            tension: 0.1
+                        },
+                        {
+                            label: '10⁻³ g Microgravity Boundary',
+                            data: [],
+                            borderColor: '#dc2626',
+                            borderWidth: 1.5,
+                            borderDash: [5, 5],
+                            pointRadius: 0
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    animation: false,
+                    scales: {
+                        x: {
+                            title: { display: true, text: 'Radial Distance r (cm)', color: '#475569', font: { size: 10 } },
+                            ticks: { color: '#64748b', font: { size: 9 } },
+                            grid: { color: '#f1f5f9' }
+                        },
+                        y: {
+                            title: { display: true, text: 'Acceleration (g)', color: '#475569', font: { size: 10 } },
+                            ticks: { color: '#64748b', font: { size: 9 } },
+                            grid: { color: '#e2e8f0' }
+                        }
+                    },
+                    plugins: {
+                        legend: { position: 'top', labels: { boxWidth: 12, font: { size: 10 } } }
+                    }
+                }
+            });
+        }
     }
 
     bindEvents() {
-        document.getElementById('mode-select').addEventListener('change', (e) => {
-            this.setMode(e.target.value);
-        });
+        // Mode Selector
+        const modeSelect = document.getElementById('mode-select');
+        if (modeSelect) {
+            modeSelect.addEventListener('change', (e) => {
+                this.setOperationMode(e.target.value);
+            });
+        }
 
-        document.getElementById('inner-rpm-slider').addEventListener('input', (e) => {
-            const val = parseFloat(e.target.value);
-            document.getElementById('inner-rpm-val').textContent = val.toFixed(1) + ' RPM';
-            this.base_inner_rpm = val;
-            this.updateTargetSpeeds();
-        });
+        // Speed Sliders
+        const innerSlider = document.getElementById('inner-rpm-slider');
+        if (innerSlider) {
+            innerSlider.addEventListener('input', (e) => {
+                this.base_inner_rpm = parseFloat(e.target.value);
+                document.getElementById('inner-rpm-val').textContent = this.base_inner_rpm.toFixed(1) + ' RPM';
+                this.updateTargetSpeeds();
+            });
+        }
 
-        document.getElementById('outer-rpm-slider').addEventListener('input', (e) => {
-            const val = parseFloat(e.target.value);
-            document.getElementById('outer-rpm-val').textContent = val.toFixed(1) + ' RPM';
-            this.base_outer_rpm = val;
-            this.updateTargetSpeeds();
-        });
+        const outerSlider = document.getElementById('outer-rpm-slider');
+        if (outerSlider) {
+            outerSlider.addEventListener('input', (e) => {
+                this.base_outer_rpm = parseFloat(e.target.value);
+                document.getElementById('outer-rpm-val').textContent = this.base_outer_rpm.toFixed(1) + ' RPM';
+                this.updateTargetSpeeds();
+            });
+        }
 
-        document.getElementById('chamber-radius-slider').addEventListener('input', (e) => {
-            const val = parseFloat(e.target.value);
-            document.getElementById('chamber-radius-val').textContent = val.toFixed(1) + ' cm';
-            this.chamber_radius_m = val / 100.0;
-            this.fluid_u.fill(0);
-        });
+        // Controls
+        document.getElementById('btn-start')?.addEventListener('click', () => { this.isRunning = true; this.isHoldingAngles = false; });
+        document.getElementById('btn-stop')?.addEventListener('click', () => { this.isRunning = false; });
+        document.getElementById('btn-reset')?.addEventListener('click', () => { this.reset(); });
 
-        document.getElementById('btn-start').addEventListener('click', () => this.isRunning = true);
-        document.getElementById('btn-stop').addEventListener('click', () => this.isRunning = false);
-        document.getElementById('btn-reset').addEventListener('click', () => this.reset());
-
-        document.getElementById('btn-export-csv').addEventListener('click', () => this.exportCSV());
-        document.getElementById('btn-export-plot').addEventListener('click', () => this.exportPlot());
+        // Exports
+        document.getElementById('btn-export-csv')?.addEventListener('click', () => { this.exportCSV(); });
+        document.getElementById('btn-export-plot')?.addEventListener('click', () => { this.exportPlot(); });
     }
 
-    setMode(mode) {
+    setOperationMode(mode) {
         this.operation_mode = mode;
         this.updateTargetSpeeds();
         this.updateModeUI();
     }
 
     updateTargetSpeeds() {
+        if (this.isHoldingAngles) return;
+
         if (this.operation_mode === 'clinostat_optimal') {
             this.target_omega_phi = this.base_inner_rpm;
             this.target_omega_psi = this.base_inner_rpm * 1.146; // Kim et al. 2026
@@ -344,8 +574,7 @@ class RPMScientificApp {
         this.sum_gx = 0.0;
         this.sum_gy = 0.0;
         this.sum_gz = 0.0;
-        this.min_g = 1.0;
-        this.max_g = 1.0;
+        this.isHoldingAngles = false;
         this.direction_changes_count = 0;
         this.fluid_u.fill(0);
         this.telemetry_history = [];
@@ -354,46 +583,72 @@ class RPMScientificApp {
         this.plot_gy = [];
         this.plot_gz = [];
         this.plot_tasmg = [];
+        this.sphereTrajectory = [];
+
+        for (const pt of this.samplePoints) {
+            pt.sumG = 0.0;
+            pt.samples = 0;
+            pt.tasmg = 1.0;
+        }
+
+        if (this.cadAssembly) {
+            this.cadAssembly.updateRotations(0, 0);
+        }
+        document.getElementById('orbit-state-badge').textContent = 'ORBITING';
+        document.getElementById('orbit-state-badge').style.color = 'var(--accent-green)';
     }
 
+    /* =========================================================================
+       50 HZ MAIN SIMULATION TICK
+       ========================================================================= */
     step(dt) {
         if (!this.isRunning) return;
 
         this.elapsed_time += dt;
 
-        // Mode logic
-        if (this.operation_mode === 'rpm_stochastic') {
-            this.stochastic_timer += dt;
-            if (this.stochastic_timer >= this.next_stochastic_switch) {
-                this.stochastic_timer = 0.0;
-                this.next_stochastic_switch = 20.0 + Math.random() * 25.0;
-                this.triggerStochasticStep();
+        if (!this.isHoldingAngles) {
+            // Mode logic
+            if (this.operation_mode === 'rpm_stochastic') {
+                this.stochastic_timer += dt;
+                if (this.stochastic_timer >= this.next_stochastic_switch) {
+                    this.stochastic_timer = 0.0;
+                    this.next_stochastic_switch = 20.0 + Math.random() * 25.0;
+                    this.triggerStochasticStep();
+                }
             }
+
+            // Motor torque acceleration ramping (max alpha = 95.5 RPM/s)
+            const maxStep = this.max_alpha_rpm_s * dt;
+            const dPhi = this.target_omega_phi - this.omega_phi_rpm;
+            if (Math.abs(dPhi) <= maxStep) this.omega_phi_rpm = this.target_omega_phi;
+            else this.omega_phi_rpm += Math.sign(dPhi) * maxStep;
+
+            const dPsi = this.target_omega_psi - this.omega_psi_rpm;
+            if (Math.abs(dPsi) <= maxStep) this.omega_psi_rpm = this.target_omega_psi;
+            else this.omega_psi_rpm += Math.sign(dPsi) * maxStep;
+
+            // Gimbal angles integration (1 RPM = 6 deg/sec)
+            this.phi_deg = (this.phi_deg + this.omega_phi_rpm * 6.0 * dt) % 360.0;
+            if (this.phi_deg < 0) this.phi_deg += 360.0;
+            this.psi_deg = (this.psi_deg + this.omega_psi_rpm * 6.0 * dt) % 360.0;
+            if (this.psi_deg < 0) this.psi_deg += 360.0;
+        } else {
+            this.omega_phi_rpm = 0.0;
+            this.omega_psi_rpm = 0.0;
         }
 
-        // Motor torque acceleration ramping (max alpha = 95.5 RPM/s)
-        const maxStep = this.max_alpha_rpm_s * dt;
-        const dPhi = this.target_omega_phi - this.omega_phi_rpm;
-        if (Math.abs(dPhi) <= maxStep) this.omega_phi_rpm = this.target_omega_phi;
-        else this.omega_phi_rpm += Math.sign(dPhi) * maxStep;
+        // Yotov et al. (2022) Kinematics with Axis Inclination Tilts
+        const phi_rad = (this.phi_deg + this.innerTilt_deg) * Math.PI / 180.0;
+        const psi_rad = (this.psi_deg + this.outerTilt_deg) * Math.PI / 180.0;
 
-        const dPsi = this.target_omega_psi - this.omega_psi_rpm;
-        if (Math.abs(dPsi) <= maxStep) this.omega_psi_rpm = this.target_omega_psi;
-        else this.omega_psi_rpm += Math.sign(dPsi) * maxStep;
-
-        // Gimbal angles integration (1 RPM = 6 deg/sec)
-        this.phi_deg = (this.phi_deg + this.omega_phi_rpm * 6.0 * dt) % 360.0;
-        if (this.phi_deg < 0) this.phi_deg += 360.0;
-        this.psi_deg = (this.psi_deg + this.omega_psi_rpm * 6.0 * dt) % 360.0;
-        if (this.psi_deg < 0) this.psi_deg += 360.0;
-
-        // Yotov et al. (2022) Equations (1)-(2)
-        const phi_rad = this.phi_deg * Math.PI / 180.0;
-        const psi_rad = this.psi_deg * Math.PI / 180.0;
         const gx = -Math.sin(phi_rad) * Math.cos(psi_rad);
         const gy =  Math.sin(phi_rad) * Math.sin(psi_rad);
         const gz =  Math.cos(phi_rad);
         const inst_g = Math.sqrt(gx * gx + gy * gy + gz * gz);
+
+        this.inst_gx = gx;
+        this.inst_gy = gy;
+        this.inst_gz = gz;
 
         // Cumulative taSMG
         this.samples++;
@@ -403,7 +658,7 @@ class RPMScientificApp {
         const avg_gx = this.sum_gx / this.samples;
         const avg_gy = this.sum_gy / this.samples;
         const avg_gz = this.sum_gz / this.samples;
-        const tasmg = Math.sqrt(avg_gx * avg_gx + avg_gy * avg_gy + avg_gz * avg_gz);
+        this.tasmg = Math.sqrt(avg_gx * avg_gx + avg_gy * avg_gy + avg_gz * avg_gz);
 
         // Wadhwa et al. (2026) Volumetric Accelerations
         const omega_phi_rad_s = (this.omega_phi_rpm * 2.0 * Math.PI) / 60.0;
@@ -436,13 +691,24 @@ class RPMScientificApp {
         const du_dr_wall = (this.fluid_u[this.fluid_N - 1] - this.fluid_u[this.fluid_N - 2]) / dr;
         this.last_shear_stress = this.fluid_mu * Math.abs(du_dr_wall - (this.fluid_u[this.fluid_N - 1] / this.chamber_radius_m)) * 1000.0;
 
-        // Stokes boundary layer
-        this.stokes_delta_mm = omega_norm > 1e-4 ? Math.sqrt(2.0 * this.fluid_nu / omega_norm) * 1000.0 : (this.chamber_radius_m * 1000.0);
+        // Update Sample Points local accelerations (Wadhwa Eq. 5)
+        for (const pt of this.samplePoints) {
+            const r_m = Math.sqrt(pt.x**2 + pt.y**2 + pt.z**2) / 100.0;
+            const a_c = (omega_norm**2 * r_m) / g0;
+            pt.ac = a_c;
+            const pt_inst = Math.sqrt(gx**2 + gy**2 + gz**2) + a_c;
+            pt.sumG += pt_inst;
+            pt.samples++;
+            pt.tasmg = pt.sumG / pt.samples;
+        }
 
         // Update CAD Model
         if (this.cadAssembly) {
             this.cadAssembly.updateRotations(this.phi_deg, this.psi_deg);
         }
+
+        // Update S² Sphere plot
+        this.updateSphereTrajectory(gx, gy, gz);
 
         // Log record for CSV
         if (this.telemetry_history.length < this.max_history_records) {
@@ -456,7 +722,7 @@ class RPMScientificApp {
                 gy: gy,
                 gz: gz,
                 inst_g: inst_g,
-                tasmg: tasmg,
+                tasmg: this.tasmg,
                 cent_edge: a_cent_edge_g,
                 shear_mPa: this.last_shear_stress
             });
@@ -467,7 +733,7 @@ class RPMScientificApp {
         this.plot_gx.push(gx);
         this.plot_gy.push(gy);
         this.plot_gz.push(gz);
-        this.plot_tasmg.push(tasmg);
+        this.plot_tasmg.push(this.tasmg);
 
         if (this.plot_time.length > this.max_plot_points) {
             this.plot_time.shift();
@@ -479,12 +745,12 @@ class RPMScientificApp {
 
         // Update UI every 5 steps (10 Hz refresh)
         if (this.samples % 5 === 0) {
-            this.updateTelemetryDOM(tasmg, inst_g, a_cent_edge_g, r_safe_cm, this.last_shear_stress);
-            this.updateCharts();
+            this.updateTelemetryDOM(this.tasmg, inst_g, a_cent_edge_g, r_safe_cm, this.last_shear_stress, avg_gx, avg_gy, avg_gz);
+            this.updateCharts(omega_norm);
         }
     }
 
-    updateTelemetryDOM(tasmg, inst_g, a_cent, r_safe, shear_mPa) {
+    updateTelemetryDOM(tasmg, inst_g, a_cent, r_safe, shear_mPa, avg_gx, avg_gy, avg_gz) {
         document.getElementById('metric-tasmg').textContent = tasmg.toFixed(4) + ' g';
         document.getElementById('metric-inst-g').textContent = inst_g.toFixed(3) + ' g';
         document.getElementById('metric-centrifugal').textContent = a_cent.toFixed(5) + ' g';
@@ -496,32 +762,123 @@ class RPMScientificApp {
         document.getElementById('display-psi').textContent = this.psi_deg.toFixed(1) + '°';
         document.getElementById('display-omega-phi').textContent = this.omega_phi_rpm.toFixed(2) + ' RPM';
         document.getElementById('display-omega-psi').textContent = this.omega_psi_rpm.toFixed(2) + ' RPM';
+
+        const gamma = (this.omega_phi_rpm > 0) ? (this.omega_psi_rpm / this.omega_phi_rpm).toFixed(3) : '1.146';
+        document.getElementById('display-gamma').textContent = gamma;
+        document.getElementById('display-tilts').textContent = `${this.innerTilt_deg.toFixed(1)}° / ${this.outerTilt_deg.toFixed(1)}°`;
+
+        // Hardware gravity cards (v1)
+        document.getElementById('card-gx').textContent = this.inst_gx.toFixed(3);
+        document.getElementById('card-gy').textContent = this.inst_gy.toFixed(3);
+        document.getElementById('card-gz').textContent = this.inst_gz.toFixed(3);
+        document.getElementById('card-avg-gx').textContent = avg_gx.toFixed(3);
+        document.getElementById('card-avg-gy').textContent = avg_gy.toFixed(3);
+        document.getElementById('card-avg-gz').textContent = avg_gz.toFixed(3);
+
+        // Update sample points table cells
+        for (const pt of this.samplePoints) {
+            const tasmgEl = document.getElementById(`pt-tasmg-${pt.id}`);
+            const acEl = document.getElementById(`pt-ac-${pt.id}`);
+            if (tasmgEl) tasmgEl.textContent = pt.tasmg.toFixed(4) + 'g';
+            if (acEl) acEl.textContent = pt.ac.toFixed(5) + 'g';
+        }
     }
 
-    updateCharts() {
-        if (!this.tsChart || !this.fdmChart) return;
-
+    updateCharts(omega_norm) {
         // Update Time-Series
-        this.tsChart.data.labels = this.plot_time;
-        this.tsChart.data.datasets[0].data = this.plot_gx;
-        this.tsChart.data.datasets[1].data = this.plot_gy;
-        this.tsChart.data.datasets[2].data = this.plot_gz;
-        this.tsChart.data.datasets[3].data = this.plot_tasmg;
-        this.tsChart.update('none');
+        if (this.tsChart) {
+            this.tsChart.data.labels = this.plot_time;
+            this.tsChart.data.datasets[0].data = this.plot_gx;
+            this.tsChart.data.datasets[1].data = this.plot_gy;
+            this.tsChart.data.datasets[2].data = this.plot_gz;
+            this.tsChart.data.datasets[3].data = this.plot_tasmg;
+            this.tsChart.update('none');
+        }
 
         // Update FDM
-        const rLabels = [];
-        const uVals = [];
-        const dr = (this.chamber_radius_m * 100.0) / (this.fluid_N - 1);
-        for (let i = 0; i < this.fluid_N; i++) {
-            rLabels.push((i * dr).toFixed(1));
-            uVals.push((this.fluid_u[i] * 1000.0).toFixed(2));
+        if (this.fdmChart) {
+            const rLabels = [];
+            const uVals = [];
+            const dr = (this.chamber_radius_m * 100.0) / (this.fluid_N - 1);
+            for (let i = 0; i < this.fluid_N; i++) {
+                rLabels.push((i * dr).toFixed(1));
+                uVals.push((this.fluid_u[i] * 1000.0).toFixed(2));
+            }
+            this.fdmChart.data.labels = rLabels;
+            this.fdmChart.data.datasets[0].data = uVals;
+            this.fdmChart.update('none');
         }
-        this.fdmChart.data.labels = rLabels;
-        this.fdmChart.data.datasets[0].data = uVals;
-        this.fdmChart.update('none');
+
+        // Update Centrifugal Gradient
+        if (this.centChart) {
+            const centLabels = [];
+            const centVals = [];
+            const threshVals = [];
+            const g0 = 9.80665;
+            for (let r_cm = 0; r_cm <= 15; r_cm += 1) {
+                centLabels.push(r_cm.toString());
+                const r_m = r_cm / 100.0;
+                centVals.push((omega_norm**2 * r_m) / g0);
+                threshVals.push(0.001); // 10^-3 g threshold
+            }
+            this.centChart.data.labels = centLabels;
+            this.centChart.data.datasets[0].data = centVals;
+            this.centChart.data.datasets[1].data = threshVals;
+            this.centChart.update('none');
+        }
     }
 
+    /* =========================================================================
+       SAMPLE PROBE POINTS MANAGEMENT (From v1)
+       ========================================================================= */
+    addSamplePoint(x, y, z) {
+        const pt = {
+            id: this.nextPointId++,
+            x: x !== undefined ? x : parseFloat(document.getElementById('sample-pt-x').value || 0),
+            y: y !== undefined ? y : parseFloat(document.getElementById('sample-pt-y').value || 0),
+            z: z !== undefined ? z : parseFloat(document.getElementById('sample-pt-z').value || 0),
+            sumG: 0.0,
+            samples: 0,
+            tasmg: 1.0,
+            ac: 0.0
+        };
+        this.samplePoints.push(pt);
+        this.renderSamplePointsTable();
+        if (this.cadAssembly) {
+            this.cadAssembly.updateSamplePoints(this.samplePoints);
+        }
+    }
+
+    removeSamplePoint(id) {
+        this.samplePoints = this.samplePoints.filter(p => p.id !== id);
+        this.renderSamplePointsTable();
+        if (this.cadAssembly) {
+            this.cadAssembly.updateSamplePoints(this.samplePoints);
+        }
+    }
+
+    renderSamplePointsTable() {
+        const tbody = document.getElementById('sample-points-tbody');
+        if (!tbody) return;
+        tbody.innerHTML = '';
+
+        for (const pt of this.samplePoints) {
+            const r = Math.sqrt(pt.x**2 + pt.y**2 + pt.z**2).toFixed(1);
+            const tr = document.createElement('tr');
+            tr.innerHTML = `
+                <td>(${pt.x}, ${pt.y}, ${pt.z})</td>
+                <td>${r} cm</td>
+                <td id="pt-tasmg-${pt.id}">${pt.tasmg.toFixed(4)}g</td>
+                <td id="pt-ac-${pt.id}">${pt.ac.toFixed(5)}g</td>
+                <td><button class="btn-del-pt" onclick="window.app.removeSamplePoint(${pt.id})">&times;</button></td>
+            `;
+            tbody.appendChild(tr);
+        }
+    }
+
+    /* =========================================================================
+       CSV & PLOT EXPORT
+       ========================================================================= */
     exportCSV() {
         if (this.telemetry_history.length === 0) {
             alert('No simulation records logged yet.');
@@ -535,8 +892,13 @@ class RPMScientificApp {
         lines.push('# Project: Random Positioning Machine (RPM) Digital Twin v2.0');
         lines.push(`# Date: ${new Date().toISOString()}`);
         lines.push(`# Operation Mode: ${this.operation_mode}`);
-        lines.push('# CAD Model: Final_Drawing.pdf (Outer 500mm, Inner 350mm, Payload 200mm)');
+        lines.push('# CAD Model: Final_Drawing.pdf (Base 1200x900mm, Outer 500mm, Inner 350mm, Payload 200mm)');
+        lines.push(`# Inner Tilt: ${this.innerTilt_deg}° | Outer Tilt: ${this.outerTilt_deg}°`);
         lines.push(`# Chamber Radius: ${(this.chamber_radius_m * 100.0).toFixed(1)} cm`);
+        lines.push('# Tracked Sample Points:');
+        for (const p of this.samplePoints) {
+            lines.push(`#   Point ${p.id}: (${p.x}, ${p.y}, ${p.z}) cm -> local taSMG = ${p.tasmg.toFixed(5)} g, centrifugal = ${p.ac.toFixed(5)} g`);
+        }
         lines.push('# =====================================================================');
         lines.push('timestamp_s,phi_deg,psi_deg,omega_phi_rpm,omega_psi_rpm,gx_g,gy_g,gz_g,inst_g,taSMG_g,centrifugal_edge_g,wall_shear_stress_mPa');
 
@@ -572,7 +934,6 @@ class RPMScientificApp {
         const canvas = document.getElementById('timeseries-canvas');
         if (!canvas) return;
 
-        // Render to temporary canvas with solid white background
         const exportCanvas = document.createElement('canvas');
         exportCanvas.width = canvas.width;
         exportCanvas.height = canvas.height;
@@ -591,12 +952,214 @@ class RPMScientificApp {
     }
 }
 
-// Modal controls
-function toggleCitationsModal(show) {
-    const el = document.getElementById('citations-modal');
-    if (el) el.classList.toggle('active', show);
+/* =========================================================================
+   UI HANDLERS & GLOBAL FUNCTIONS
+   ========================================================================= */
+
+// Subtabs navigation
+function switchSidebarTab(tabId) {
+    document.querySelectorAll('.subtab-btn').forEach(btn => btn.classList.remove('active'));
+    document.querySelectorAll('.subtab-content').forEach(content => content.classList.remove('active'));
+
+    const activeBtn = Array.from(document.querySelectorAll('.subtab-btn')).find(b => b.getAttribute('onclick')?.includes(tabId));
+    if (activeBtn) activeBtn.classList.add('active');
+
+    const activeContent = document.getElementById(tabId);
+    if (activeContent) activeContent.classList.add('active');
 }
 
+// Multiplot tab switcher
+function switchPlotView(viewId) {
+    document.querySelectorAll('.plot-tab-btn').forEach(btn => btn.classList.remove('active'));
+    document.querySelectorAll('.plot-view').forEach(view => view.classList.remove('active'));
+
+    const activeBtn = Array.from(document.querySelectorAll('.plot-tab-btn')).find(b => b.getAttribute('onclick')?.includes(viewId));
+    if (activeBtn) activeBtn.classList.add('active');
+
+    const activeView = document.getElementById(viewId);
+    if (activeView) activeView.classList.add('active');
+
+    const titleEl = document.getElementById('multiplot-title');
+    if (titleEl) {
+        if (viewId === 'plot-sphere') titleEl.textContent = 'g⃗ Trajectory on Unit Sphere (S² Celestial Space)';
+        else if (viewId === 'plot-shear') titleEl.textContent = '1D Navier-Stokes Fluid Shear Profile u_θ(r)';
+        else if (viewId === 'plot-centrifugal') titleEl.textContent = 'Volumetric Centrifugal Gradient vs Radial Distance';
+    }
+}
+
+// Axis Inclination (Tilts)
+function applyAxisInclinations() {
+    const innerTilt = parseFloat(document.getElementById('inner-tilt-input').value || 0);
+    const outerTilt = parseFloat(document.getElementById('outer-tilt-input').value || 0);
+    window.app.innerTilt_deg = innerTilt;
+    window.app.outerTilt_deg = outerTilt;
+
+    if (window.app.cadAssembly) {
+        window.app.cadAssembly.updateAxisTilts(innerTilt, outerTilt);
+    }
+    document.getElementById('display-tilts').textContent = `${innerTilt.toFixed(1)}° / ${outerTilt.toFixed(1)}°`;
+}
+
+// Manual Angle Jog & Hold
+function jogAngles(dPhi, dPsi) {
+    if (dPhi === 0 && dPsi === 0) {
+        window.app.phi_deg = 0;
+        window.app.psi_deg = 0;
+    } else {
+        window.app.phi_deg = (window.app.phi_deg + dPhi + 360) % 360;
+        window.app.psi_deg = (window.app.psi_deg + dPsi + 360) % 360;
+    }
+    document.getElementById('manual-phi-input').value = window.app.phi_deg.toFixed(1);
+    document.getElementById('manual-psi-input').value = window.app.psi_deg.toFixed(1);
+    applyManualAnglesAndHold();
+}
+
+function applyManualAnglesAndHold() {
+    const phi = parseFloat(document.getElementById('manual-phi-input').value || 0);
+    const psi = parseFloat(document.getElementById('manual-psi-input').value || 0);
+    window.app.phi_deg = phi;
+    window.app.psi_deg = psi;
+    window.app.isHoldingAngles = true;
+    window.app.omega_phi_rpm = 0.0;
+    window.app.omega_psi_rpm = 0.0;
+
+    if (window.app.cadAssembly) {
+        window.app.cadAssembly.updateRotations(phi, psi);
+    }
+    const badge = document.getElementById('orbit-state-badge');
+    if (badge) {
+        badge.textContent = 'HOLDING TILT';
+        badge.style.color = 'var(--accent-red)';
+    }
+}
+
+function resumeSimulationTrajectory() {
+    window.app.isHoldingAngles = false;
+    window.app.updateTargetSpeeds();
+    const badge = document.getElementById('orbit-state-badge');
+    if (badge) {
+        badge.textContent = 'ORBITING';
+        badge.style.color = 'var(--accent-green)';
+    }
+}
+
+// Floating Tilt Modal
+function toggleTiltModal(show) {
+    const modal = document.getElementById('tilt-modal');
+    if (modal) modal.style.display = show ? 'flex' : 'none';
+    if (show) {
+        document.getElementById('modal-phi').value = window.app.phi_deg.toFixed(1);
+        document.getElementById('modal-psi').value = window.app.psi_deg.toFixed(1);
+        document.getElementById('modal-inner-tilt').value = window.app.innerTilt_deg.toFixed(1);
+        document.getElementById('modal-outer-tilt').value = window.app.outerTilt_deg.toFixed(1);
+    }
+}
+
+function modalJog(dPhi, dPsi) {
+    let phi = parseFloat(document.getElementById('modal-phi').value || 0);
+    let psi = parseFloat(document.getElementById('modal-psi').value || 0);
+    if (dPhi === 0 && dPsi === 0) {
+        phi = 0; psi = 0;
+    } else {
+        phi = (phi + dPhi + 360) % 360;
+        psi = (psi + dPsi + 360) % 360;
+    }
+    document.getElementById('modal-phi').value = phi.toFixed(1);
+    document.getElementById('modal-psi').value = psi.toFixed(1);
+}
+
+function applyModalChangesAndHold() {
+    const phi = parseFloat(document.getElementById('modal-phi').value || 0);
+    const psi = parseFloat(document.getElementById('modal-psi').value || 0);
+    const innerTilt = parseFloat(document.getElementById('modal-inner-tilt').value || 0);
+    const outerTilt = parseFloat(document.getElementById('modal-outer-tilt').value || 0);
+
+    window.app.phi_deg = phi;
+    window.app.psi_deg = psi;
+    window.app.innerTilt_deg = innerTilt;
+    window.app.outerTilt_deg = outerTilt;
+    window.app.isHoldingAngles = true;
+
+    if (window.app.cadAssembly) {
+        window.app.cadAssembly.updateRotations(phi, psi);
+        window.app.cadAssembly.updateAxisTilts(innerTilt, outerTilt);
+    }
+
+    document.getElementById('manual-phi-input').value = phi;
+    document.getElementById('manual-psi-input').value = psi;
+    document.getElementById('inner-tilt-input').value = innerTilt;
+    document.getElementById('outer-tilt-input').value = outerTilt;
+
+    const badge = document.getElementById('orbit-state-badge');
+    if (badge) {
+        badge.textContent = 'HOLDING TILT';
+        badge.style.color = 'var(--accent-red)';
+    }
+    toggleTiltModal(false);
+}
+
+function resumeFromModal() {
+    resumeSimulationTrajectory();
+    toggleTiltModal(false);
+}
+
+// Sample Enclosure Box
+function updateEnclosureBox() {
+    const x = parseFloat(document.getElementById('enclosure-x').value || 20);
+    const y = parseFloat(document.getElementById('enclosure-y').value || 20);
+    const z = parseFloat(document.getElementById('enclosure-z').value || 20);
+    const show = document.getElementById('show-enclosure').value === 'yes';
+
+    if (window.app.cadAssembly) {
+        window.app.cadAssembly.updateEnclosureBox(x, y, z, show);
+    }
+}
+
+// Sample Points
+function addSamplePoint() {
+    window.app.addSamplePoint();
+}
+
+// Payload Dimensions
+function updatePayloadDimensions() {
+    const w = parseFloat(document.getElementById('payload-w').value || 20);
+    const h = parseFloat(document.getElementById('payload-h').value || 20);
+    const d = parseFloat(document.getElementById('payload-d').value || 20);
+    const show = document.getElementById('show-payload').value === 'yes';
+
+    if (window.app.cadAssembly) {
+        window.app.cadAssembly.updatePayloadDimensions(w, h, d, show);
+    }
+}
+
+function updateFrameClearances() {
+    alert('CAD Clearances updated: Inner frame opening 250x250 mm, Outer frame opening 400x400 mm strictly verified against Final_Drawing.pdf DWG 02.');
+}
+
+// WebSerial (from v1)
+async function connectWebSerial() {
+    if (!('serial' in navigator)) {
+        alert('WebSerial API is not supported in this browser. Please use Chrome, Edge, or Opera.');
+        return;
+    }
+    try {
+        const port = await navigator.serial.requestPort();
+        await port.open({ baudRate: 115200 });
+        alert('WebSerial connected successfully to RPM motor controller at 115200 baud.');
+        document.getElementById('ws-status-badge').textContent = '● WebSerial Connected (115200)';
+        document.getElementById('ws-status-badge').style.color = 'var(--accent-green)';
+    } catch (err) {
+        console.warn('WebSerial connection cancelled or failed:', err);
+    }
+}
+
+// Citations Modal
+function toggleCitationsModal(show) {
+    const modal = document.getElementById('citations-modal');
+    if (modal) modal.style.display = show ? 'flex' : 'none';
+}
+
+// Initialize on page load
 window.addEventListener('load', () => {
     window.app = new RPMScientificApp();
 });

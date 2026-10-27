@@ -13,6 +13,9 @@ Digital_Twin_C++/**/CMakeFiles/
 Digital_Twin_C++/**/CMakeCache.txt
 Digital_Twin_C++/**/cmake_install.cmake
 Digital_Twin_C++/**/Makefile
+v2/cpp/rpm_workstation
+v2/swift/rpm_workstation
+*.o
 
 # Rust build outputs
 Digital_Twin_Rust/target/
