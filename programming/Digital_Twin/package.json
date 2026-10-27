@@ -6,6 +6,7 @@
   "license": "Proprietary",
   "private": true,
   "scripts": {
+    "build": "mkdir -p dist public && cp src/webapp/static/index.html dist/index.html 2>/dev/null || true",
     "start": "python src/main.py",
     "start:sim": "python src/main.py --mode simulation --dashboard",
     "start:hw": "python src/main.py --mode hardware --dashboard",

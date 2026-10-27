@@ -1,19 +1,9 @@
 {
-  "$schema": "https://openapi.vercel.sh/vercel.json",
-  "version": 2,
   "cleanUrls": true,
-  "trailingSlash": false,
-  "routes": [
+  "rewrites": [
     {
-      "src": "/ws",
-      "status": 404,
-      "headers": {
-        "Content-Type": "application/json"
-      }
-    },
-    {
-      "src": "/(.*)",
-      "dest": "/index.html"
+      "source": "/((?!api/).*)",
+      "destination": "/index.html"
     }
   ],
   "headers": [
@@ -31,10 +21,6 @@
         {
           "key": "X-XSS-Protection",
           "value": "1; mode=block"
-        },
-        {
-          "key": "Referrer-Policy",
-          "value": "strict-origin-when-cross-origin"
         }
       ]
     }

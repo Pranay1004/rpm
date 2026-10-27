@@ -1,0 +1,10 @@
+{
+  "name": "rpm-iist",
+  "version": "1.0.0",
+  "description": "IIST RPM Digital Twin",
+  "private": true,
+  "scripts": {
+    "build": "mkdir -p dist public && cp index.html dist/index.html && cp index.html public/index.html",
+    "start": "npx serve ."
+  }
+}
