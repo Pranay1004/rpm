@@ -268,6 +268,7 @@
             flex: 1;
             height: 6px;
             -webkit-appearance: none;
+            appearance: none;
             background: var(--bg-secondary);
             border-radius: 3px;
             outline: none;
@@ -275,6 +276,7 @@
         
         input[type="range"]::-webkit-slider-thumb {
             -webkit-appearance: none;
+            appearance: none;
             width: 18px;
             height: 18px;
             background: linear-gradient(135deg, var(--accent-cyan), var(--accent-purple));
@@ -737,8 +739,114 @@
             border-radius: 3px;
         }
         
-        ::-webkit-scrollbar-thumb:hover {
-            background: var(--text-muted);
+        /* Modal */
+        .modal-overlay {
+            position: fixed;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background: rgba(5, 5, 8, 0.88);
+            backdrop-filter: blur(14px);
+            z-index: 1000;
+            display: none;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+        .modal-overlay.active {
+            display: flex;
+        }
+        .modal-content {
+            background: var(--bg-card);
+            border: 1px solid var(--accent-cyan);
+            border-radius: 16px;
+            max-width: 900px;
+            width: 100%;
+            max-height: 85vh;
+            overflow-y: auto;
+            box-shadow: 0 0 50px rgba(0, 229, 255, 0.25);
+            padding: 28px;
+        }
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            padding-bottom: 16px;
+            border-bottom: 1px solid var(--border-color);
+            margin-bottom: 20px;
+        }
+        .modal-title {
+            font-family: 'Orbitron', sans-serif;
+            font-size: 18px;
+            font-weight: 700;
+            color: #fff;
+            letter-spacing: 1px;
+        }
+        .modal-close-btn {
+            background: var(--bg-secondary);
+            border: 1px solid var(--border-color);
+            color: var(--text-secondary);
+            font-size: 16px;
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.2s;
+        }
+        .modal-close-btn:hover {
+            color: var(--accent-red);
+            border-color: var(--accent-red);
+        }
+        .citation-card {
+            background: var(--bg-secondary);
+            border: 1px solid var(--border-color);
+            border-radius: 10px;
+            padding: 16px;
+            margin-bottom: 16px;
+            transition: border-color 0.2s;
+        }
+        .citation-card:hover {
+            border-color: rgba(0, 229, 255, 0.5);
+        }
+        .citation-badge {
+            display: inline-block;
+            font-family: 'Roboto Mono', monospace;
+            font-size: 10px;
+            font-weight: 600;
+            padding: 3px 8px;
+            border-radius: 4px;
+            background: rgba(0, 229, 255, 0.15);
+            color: var(--accent-cyan);
+            margin-bottom: 8px;
+        }
+        .citation-title {
+            font-size: 14px;
+            font-weight: 600;
+            color: #fff;
+            margin-bottom: 6px;
+        }
+        .citation-authors {
+            font-size: 12px;
+            color: var(--text-secondary);
+            margin-bottom: 6px;
+        }
+        .citation-meta {
+            font-family: 'Roboto Mono', monospace;
+            font-size: 11px;
+            color: var(--accent-purple);
+            margin-bottom: 8px;
+        }
+        .citation-eq {
+            background: rgba(5, 5, 8, 0.7);
+            border-left: 3px solid var(--accent-green);
+            padding: 10px 14px;
+            border-radius: 0 6px 6px 0;
+            font-family: 'Roboto Mono', monospace;
+            font-size: 11px;
+            color: var(--accent-green);
+            margin-top: 8px;
+            line-height: 1.6;
         }
     </style>
 </head>
@@ -748,13 +856,19 @@
          ============================================ -->
     <header class="header">
         <div class="logo">
-            <div class="logo-icon">DT</div>
+            <div class="logo-icon">IIST</div>
             <div>
                 <div class="logo-text">RPM DIGITAL TWIN</div>
-                <div class="logo-version">v2.0 • Microgravity Simulation</div>
+                <div class="logo-version">IIST • Aerospace Engineering • Microgravity Lab</div>
             </div>
         </div>
         <div class="header-status">
+            <button onclick="toggleCitationsModal(true)" style="background: rgba(191, 90, 242, 0.15); border: 1px solid var(--accent-purple); color: #fff; padding: 7px 14px; border-radius: 8px; font-size: 11px; cursor: pointer; display: flex; align-items: center; gap: 6px; font-weight: 600; letter-spacing: 0.5px; transition: all 0.2s;" onmouseover="this.style.background='rgba(191, 90, 242, 0.3)'" onmouseout="this.style.background='rgba(191, 90, 242, 0.15)'">
+                📚 Citations & Equations
+            </button>
+            <button id="webserial-btn" onclick="connectWebSerial()" style="background: rgba(0, 255, 157, 0.12); border: 1px solid var(--accent-green); color: var(--accent-green); padding: 7px 14px; border-radius: 8px; font-size: 11px; cursor: pointer; display: flex; align-items: center; gap: 6px; font-weight: 600; letter-spacing: 0.5px; transition: all 0.2s;" onmouseover="this.style.background='rgba(0, 255, 157, 0.25)'" onmouseout="this.style.background='rgba(0, 255, 157, 0.12)'">
+                🔌 Connect HW (WebSerial)
+            </button>
             <div class="connection-badge" onclick="scanConnections()">
                 <div class="status-dot" id="connection-dot"></div>
                 <span id="connection-text">Connecting...</span>
@@ -762,6 +876,106 @@
             <div class="timestamp" id="timestamp">--:--:--</div>
         </div>
     </header>
+
+    <!-- ============================================
+         ACADEMIC CITATIONS & MATHEMATICAL FORMULATION MODAL
+         ============================================ -->
+    <div id="citations-modal" class="modal-overlay" onclick="closeCitationsModal(event)">
+        <div class="modal-content" onclick="event.stopPropagation()">
+            <div class="modal-header">
+                <div>
+                    <div class="modal-title">MATHEMATICAL FORMULATIONS & CITATIONS</div>
+                    <div style="font-size: 11px; color: var(--accent-cyan); margin-top: 4px; font-family: 'Roboto Mono', monospace;">
+                        Indian Institute of Space Science and Technology (IIST) • Dept of Aerospace Engineering
+                    </div>
+                </div>
+                <button class="modal-close-btn" onclick="toggleCitationsModal(false)">✕</button>
+            </div>
+            <div class="modal-body">
+                <div style="margin-bottom: 16px; padding: 12px; background: rgba(0, 229, 255, 0.08); border-radius: 8px; border-left: 3px solid var(--accent-cyan); font-size: 12px; line-height: 1.5;">
+                    <strong>Academic Digital Twin Architecture:</strong> This Random Positioning Machine (RPM) Digital Twin models multi-axis microgravity kinematics, 3D volumetric acceleration fields, and fluid shear stresses with peer-reviewed mathematical rigor. All equations and algorithms are directly derived from primary spaceflight and microgravity simulation literature.
+                </div>
+
+                <!-- Citation 1: Wadhwa et al. -->
+                <div class="citation-card">
+                    <span class="citation-badge">VOLUMETRIC KINEMATICS & CRITICAL SAMPLE RADIUS</span>
+                    <div class="citation-title">Guidelines for use of the random positioning machine as a reduced-gravity analog</div>
+                    <div class="citation-authors">Anna Wadhwa, Lasse Bruun, Johan C. G. Petersen, Lonnie G. Petersen</div>
+                    <div class="citation-meta">Scientific Reports (Nature Portfolio) 16, 39316 (2026) • DOI: 10.1038/s41598-026-39316-7</div>
+                    <div style="font-size: 11px; color: var(--text-secondary); margin-bottom: 6px;">
+                        Affiliations: Harvard-MIT Division of Health Sciences and Technology (HST), MIT, Cambridge, MA, USA; Dept. of Orthopaedic Surgery, UC San Diego, USA.
+                    </div>
+                    <div class="citation-eq">
+                        Equation (5) Spatial Acceleration Field:<br>
+                        a_total(r, t) = g(t) - ω(t) × (ω(t) × r) - α(t) × r<br>
+                        Centrifugal bias: a_cent = -ω × (ω × r) | Euler acceleration: a_euler = α × r<br>
+                        Critical Radius Threshold (for a_cent &lt; 10⁻³ g): r_safe = (10⁻³ · g₀) / ||ω||²
+                    </div>
+                </div>
+
+                <!-- Citation 2: Kim et al. -->
+                <div class="citation-card">
+                    <span class="citation-badge">S² SPHERICAL ERGODICITY & POLE-AVOIDANCE</span>
+                    <div class="citation-title">Comparison of clinostat control strategies to achieve simulated microgravity with uniform gravity vector distribution</div>
+                    <div class="citation-authors">S. Y. Kim, J. H. Park, C. H. Kim</div>
+                    <div class="citation-meta">npj Microgravity (Nature Portfolio / NASA-supported) 12, 570 (2026) • DOI: 10.1038/s41526-026-00570-8</div>
+                    <div class="citation-eq">
+                        Optimal Non-Harmonic Velocity Ratio:<br>
+                        γ = ω_φ / ω_ψ = 1.146 (e.g., Inner = 2.000 RPM, Outer = 2.292 RPM)<br>
+                        Proof that harmonic integer ratios (1:1, 1:2) trap the gravity vector into closed 1D periodic rings with severe polar accumulation, whereas irrational/non-harmonic ratios achieve uniform ergodic coverage on the unit sphere S².
+                    </div>
+                </div>
+
+                <!-- Citation 3: Pica et al. -->
+                <div class="citation-card">
+                    <span class="citation-badge">MODE A ZERO-CROSSING STOCHASTIC PROFILE</span>
+                    <div class="citation-title">Characterization of the random positioning machine as a microgravity simulator for biological applications</div>
+                    <div class="citation-authors">A. Pica, G. Uras, I. G. Porco, A. Manca, A. Pantaleo, U. Della Croce</div>
+                    <div class="citation-meta">PLOS ONE 21(6), e0351320 (2026) • DOI: 10.1371/journal.pone.0351320</div>
+                    <div class="citation-eq">
+                        Stochastic Direction Reversal Algorithm:<br>
+                        Zero-crossings generated every T_switch ∈ [20, 45] s with velocity walk ω ∈ [0.80, 1.00] · ω_max.<br>
+                        Cancels cumulative DC angular momentum drift and evaluates cellular mechanosensitive threshold response.
+                    </div>
+                </div>
+
+                <!-- Citation 4: Yotov et al. -->
+                <div class="citation-card">
+                    <span class="citation-badge">GIMBAL KINEMATICS & GRAVITY PROJECTION</span>
+                    <div class="citation-title">A New Random Positioning Machine Modification Applied for Microgravity Simulation in Laboratory Experiments with Rats</div>
+                    <div class="citation-authors">V. V. Yotov, J. Marovska, V. Turiyski, S. I. Ivanov</div>
+                    <div class="citation-meta">Inventions 7(3), 85 (2022) • DOI: 10.3390/inventions7030085</div>
+                    <div class="citation-eq">
+                        Equations (1)-(2) Rotation Matrices & Sample Vector:<br>
+                        R_outer = R_Y(ψ), R_inner = R_Z(φ)<br>
+                        ē_g(t) = -sin(φ)cos(ψ)ē_x + sin(φ)sin(ψ)ē_y + cos(φ)ē_z<br>
+                        taSMG = || (1/T) ∫₀ᵀ ē_g(t) dt ||
+                    </div>
+                </div>
+
+                <!-- Citation 5: Hasenstein & van Loon -->
+                <div class="citation-card">
+                    <span class="citation-badge">FLUID SHEAR STRESS & 1D FDM DIFFUSION</span>
+                    <div class="citation-title">Clinostats and Other Rotating Systems—Design, Function, and Limitations</div>
+                    <div class="citation-authors">Karl H. Hasenstein & Jack J. W. A. van Loon</div>
+                    <div class="citation-meta">Generation and Applications of Extra-Terrestrial Environments on Earth, Chapter 14, pp. 147–160 (2015) • ISBN: 978-87-93237-54-4</div>
+                    <div class="citation-eq">
+                        Unsteady 1D Navier-Stokes Cylindrical Momentum Diffusion (FDM at 50Hz):<br>
+                        ∂u_θ/∂t = ν · [ ∂²u_θ/∂r² + (1/r) · (∂u_θ/∂r) - u_θ/r² ]<br>
+                        Dynamic Wall Shear Stress: τ_w = μ · |∂u_θ/∂r - u_θ/r|_{r=R} (mPa)<br>
+                        Boundary Layer Thickness: δ = √(2ν / ||ω||)
+                    </div>
+                </div>
+
+                <!-- Institutional Footer -->
+                <div style="text-align: center; margin-top: 20px; padding-top: 14px; border-top: 1px solid var(--border-color); font-size: 11px; color: var(--text-secondary);">
+                    <strong>Indian Institute of Space Science and Technology (IIST)</strong><br>
+                    Department of Aerospace Engineering • Valiamala, Thiruvananthapuram, Kerala 695547, India<br>
+                    Live Portal: <a href="https://rpm.iist.vercel.app" target="_blank" style="color: var(--accent-cyan); text-decoration: none;">rpm.iist.vercel.app</a> • Repository: <a href="https://github.com/Pranay1004/rpm" target="_blank" style="color: var(--accent-cyan); text-decoration: none;">github.com/Pranay1004/rpm</a>
+                </div>
+            </div>
+        </div>
+    </div>
     
     <!-- ============================================
          MAIN CONTENT
@@ -771,6 +985,43 @@
         <!-- LEFT COLUMN - CONTROLS -->
         <div class="control-column">
             
+            <!-- Operation Mode & Volumetric Chamber (Kim 2026, Pica 2026, Wadhwa 2026) -->
+            <div class="panel">
+                <div class="panel-header">
+                    <span class="panel-title">Operation Mode & Physics</span>
+                    <span id="active-mode-badge" style="font-size: 9px; padding: 2px 6px; border-radius: 4px; background: rgba(0, 229, 255, 0.2); color: var(--accent-cyan); font-family: 'Roboto Mono', monospace;">CLINOSTAT 3D</span>
+                </div>
+                
+                <div style="margin-bottom: 12px;">
+                    <label class="dimension-label">Trajectory Mode</label>
+                    <select class="dimension-input" id="operation-mode-select" onchange="changeOperationMode()" style="width: 100%; color: var(--accent-cyan); margin-top: 4px; cursor: pointer;">
+                        <option value="clinostat_3d">Clinostat 3D (Constant 2.0 / 2.0 RPM)</option>
+                        <option value="clinostat_optimal">Clinostat Optimal (Non-harmonic 1.146 - Kim et al. 2026)</option>
+                        <option value="rpm_stochastic">Stochastic RPM (Zero-Crossings 20-45s - Pica et al. 2026)</option>
+                    </select>
+                </div>
+                
+                <div style="margin-bottom: 8px;">
+                    <div style="display: flex; justify-content: space-between; align-items: center;">
+                        <label class="dimension-label">Sample Chamber Radius (r)</label>
+                        <span id="sample-radius-val" style="font-family: 'Roboto Mono', monospace; font-size: 12px; color: var(--accent-yellow);">5.0 cm</span>
+                    </div>
+                    <div class="slider-row" style="margin-top: 6px;">
+                        <input type="range" id="sample-radius-slider" min="1.0" max="20.0" step="0.5" value="5.0" oninput="updateSampleRadius(this.value)">
+                    </div>
+                    <div class="slider-limits">
+                        <span>1 cm</span>
+                        <span>5 cm</span>
+                        <span>10 cm</span>
+                        <span>15 cm</span>
+                        <span>20 cm</span>
+                    </div>
+                </div>
+                <div style="font-size: 10px; color: var(--text-muted); line-height: 1.4;">
+                    Volumetric acceleration: a_cent = ω × (ω × r) & real-time FDM Navier-Stokes shear stress.
+                </div>
+            </div>
+
             <!-- Motor Speed Control -->
             <div class="panel">
                 <div class="panel-header">
@@ -1081,9 +1332,43 @@
             
             <!-- Main Metric -->
             <div class="main-metric">
-                <div class="main-metric-label">Time-Averaged |g⃗|</div>
+                <div class="main-metric-label">Center taSMG (r = 0)</div>
                 <div class="main-metric-value" id="mean-g">0.000<span class="main-metric-unit">g</span></div>
-                <div class="main-metric-note">||⟨g⃗⟩|| • True Microgravity Metric</div>
+                <div class="main-metric-note">||⟨g⃗⟩|| • Center of Rotation (COR)</div>
+            </div>
+            
+            <!-- Volumetric & FDM Biomechanical Metrics (Wadhwa et al. & van Loon) -->
+            <div class="panel" style="margin-bottom: 12px; background: rgba(15, 15, 24, 0.95); border: 1px solid rgba(0, 229, 255, 0.2);">
+                <div class="panel-header" style="margin-bottom: 10px;">
+                    <span class="panel-title" style="font-size: 11px;">Volumetric Field & FDM Shear</span>
+                    <span style="font-size: 9px; color: var(--accent-green); font-family: 'Roboto Mono', monospace;">50Hz FDM Navier-Stokes</span>
+                </div>
+                <div class="metrics-grid">
+                    <div class="metric-card">
+                        <div class="metric-label">Edge ⟨g_edge⟩</div>
+                        <div class="metric-value orange" id="mean-g-edge">0.0000<span style="font-size:10px;">g</span></div>
+                    </div>
+                    <div class="metric-card">
+                        <div class="metric-label">Max Safe Radius</div>
+                        <div class="metric-value cyan" id="safe-radius">0.0<span style="font-size:10px;">cm</span></div>
+                    </div>
+                    <div class="metric-card">
+                        <div class="metric-label">FDM Fluid Shear</div>
+                        <div class="metric-value purple" id="fluid-shear">0.00<span style="font-size:10px;">mPa</span></div>
+                    </div>
+                    <div class="metric-card">
+                        <div class="metric-label">Centrifugal a_c</div>
+                        <div class="metric-value yellow" id="centrifugal-edge">0.0000<span style="font-size:10px;">g</span></div>
+                    </div>
+                    <div class="metric-card">
+                        <div class="metric-label">HW Telemetry Δg</div>
+                        <div class="metric-value green" id="hw-residual">Simulated</div>
+                    </div>
+                    <div class="metric-card">
+                        <div class="metric-label">Zero-Crossings</div>
+                        <div class="metric-value cyan" id="zero-crossings">0</div>
+                    </div>
+                </div>
             </div>
             
             <!-- Secondary Metrics -->
@@ -1419,14 +1704,27 @@
             listEl.innerHTML = html;
         }
         
-        function updateSamplePointsGravity(gx, gy, gz) {
-            // Update gravity for each sample point
-            // Note: For a rigid body RPM, all points experience the same gravity vector direction
-            // but the effective gravity at different positions could include centrifugal effects
-            // For simplicity, we track the same gravity vector for all points in the enclosure
+        function updateSamplePointsGravity(gx, gy, gz, omegaPhiRpm, omegaPsiRpm) {
+            // Full volumetric kinematics (Wadhwa et al., MIT/Harvard 2026 Eq. 5)
+            // Off-center points experience persistent centrifugal acceleration: a_cent = ω² * r
+            const omegaPhi = (omegaPhiRpm || 0) * (Math.PI / 30); // rad/s
+            const omegaPsi = (omegaPsiRpm || 0) * (Math.PI / 30); // rad/s
+            const omegaEffSq = omegaPhi * omegaPhi + omegaPsi * omegaPsi;
+            const gConst = 9.80665;
             
             samplePoints.forEach(pt => {
-                pt.gravityHistory.push({ x: gx, y: gy, z: gz });
+                // Outward radial acceleration in sample frame
+                // pt.x, pt.y, pt.z are in meters
+                const ax_cent = (omegaEffSq * pt.x) / gConst;
+                const ay_cent = (omegaEffSq * pt.y) / gConst;
+                const az_cent = (omegaEffSq * pt.z) / gConst;
+                
+                // Total effective acceleration vector (rotated gravity + centrifugal bias)
+                const ax_total = gx + ax_cent;
+                const ay_total = gy + ay_cent;
+                const az_total = gz + az_cent;
+                
+                pt.gravityHistory.push({ x: ax_total, y: ay_total, z: az_total });
                 if (pt.gravityHistory.length > 3000) {
                     pt.gravityHistory.shift();
                 }
@@ -1445,7 +1743,7 @@
             });
             
             // Update list display periodically (every 50 updates)
-            if (Math.random() < 0.02) {
+            if (Math.random() < 0.04) {
                 updateSamplePointsList();
             }
         }
@@ -2154,44 +2452,166 @@
         }
         
         // ============================================
-        // WEBSOCKET CONNECTION
+        // CITATIONS MODAL & WEB SERIAL TELEMETRY
+        // ============================================
+        function toggleCitationsModal(show) {
+            const modal = document.getElementById('citations-modal');
+            if (modal) {
+                if (show) modal.classList.add('active');
+                else modal.classList.remove('active');
+            }
+        }
+        
+        function closeCitationsModal(event) {
+            if (event.target && event.target.id === 'citations-modal') {
+                toggleCitationsModal(false);
+            }
+        }
+        
+        // Web Serial API direct hardware connection
+        let serialPort = null;
+        let serialReader = null;
+        let serialConnected = false;
+        
+        async function connectWebSerial() {
+            const btn = document.getElementById('webserial-btn');
+            if (serialConnected) {
+                try {
+                    if (serialReader) await serialReader.cancel();
+                    if (serialPort) await serialPort.close();
+                } catch (e) {
+                    console.error('Serial close error:', e);
+                }
+                serialConnected = false;
+                serialPort = null;
+                serialReader = null;
+                btn.textContent = '🔌 Connect HW (WebSerial)';
+                btn.style.borderColor = 'var(--accent-green)';
+                btn.style.color = 'var(--accent-green)';
+                btn.style.background = 'rgba(0, 255, 157, 0.12)';
+                return;
+            }
+            
+            if (!('serial' in navigator)) {
+                alert('Web Serial API is not supported in this browser. Please use Google Chrome, Microsoft Edge, or Opera over HTTPS (or on localhost).');
+                return;
+            }
+            
+            try {
+                serialPort = await navigator.serial.requestPort();
+                await serialPort.open({ baudRate: 115200 });
+                serialConnected = true;
+                btn.textContent = '🔌 Disconnect HW';
+                btn.style.borderColor = 'var(--accent-cyan)';
+                btn.style.color = 'var(--accent-cyan)';
+                btn.style.background = 'rgba(0, 229, 255, 0.25)';
+                readSerialLoop();
+            } catch (err) {
+                console.warn('Web Serial port selection aborted or error:', err);
+            }
+        }
+        
+        async function readSerialLoop() {
+            try {
+                const textDecoder = new TextDecoderStream();
+                serialPort.readable.pipeTo(textDecoder.writable);
+                serialReader = textDecoder.readable.getReader();
+                let buffer = '';
+                while (true) {
+                    const { value, done } = await serialReader.read();
+                    if (done) break;
+                    if (value) {
+                        buffer += value;
+                        const lines = buffer.split('\n');
+                        buffer = lines.pop();
+                        for (const line of lines) {
+                            parseHardwareTelemetryLine(line.trim());
+                        }
+                    }
+                }
+            } catch (error) {
+                console.warn('Serial loop ended:', error);
+            } finally {
+                if (serialReader) serialReader.releaseLock();
+            }
+        }
+        
+        function parseHardwareTelemetryLine(line) {
+            if (!line) return;
+            try {
+                if (line.startsWith('{') && line.endsWith('}')) {
+                    const d = JSON.parse(line);
+                    if (d.ax !== undefined && d.ay !== undefined && d.az !== undefined) {
+                        const norm = Math.sqrt(d.ax * d.ax + d.ay * d.ay + d.az * d.az);
+                        if (window.localEngine) window.localEngine.lastHwG = norm;
+                    }
+                } else if (line.includes(',')) {
+                    const parts = line.split(',').map(s => parseFloat(s.trim()));
+                    if (parts.length >= 3 && !isNaN(parts[0])) {
+                        const norm = Math.sqrt(parts[0] * parts[0] + parts[1] * parts[1] + parts[2] * parts[2]);
+                        if (window.localEngine) window.localEngine.lastHwG = norm;
+                    }
+                }
+            } catch (e) {}
+        }
+
+        // ============================================
+        // WEBSOCKET CONNECTION & HYBRID ENGINE ADAPTER
         // ============================================
         function connectWebSocket() {
+            const isLocal = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
             const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
             const wsUrl = `${protocol}//${window.location.host}/ws`;
             
-            ws = new WebSocket(wsUrl);
+            try {
+                ws = new WebSocket(wsUrl);
+            } catch (e) {
+                console.warn('WebSocket init skipped or unsupported:', e);
+                activateLocalEngineFallback();
+                return;
+            }
             
             ws.onopen = () => {
-                console.log('WebSocket connected');
+                console.log('WebSocket server connected - switching to backend telemetry');
+                if (window.localEngine) window.localEngine.isPaused = true;
                 document.getElementById('connection-dot').classList.add('connected');
-                document.getElementById('connection-text').textContent = 'Connected';
-                document.getElementById('ws-status').textContent = 'Connected';
+                document.getElementById('connection-text').textContent = 'Server Connected';
+                document.getElementById('ws-status').textContent = 'Connected (FastAPI)';
                 document.getElementById('ws-status').className = 'connection-status connected';
             };
             
             ws.onclose = () => {
-                console.log('WebSocket disconnected');
-                document.getElementById('connection-dot').classList.remove('connected');
-                document.getElementById('connection-text').textContent = 'Disconnected';
-                document.getElementById('ws-status').textContent = 'Disconnected';
-                document.getElementById('ws-status').className = 'connection-status disconnected';
-                setTimeout(connectWebSocket, 2000);
+                console.log('WebSocket server unavailable - activating autonomous in-browser 50Hz Digital Twin');
+                activateLocalEngineFallback();
+                if (isLocal) {
+                    setTimeout(connectWebSocket, 4000);
+                }
             };
             
-            ws.onerror = (error) => console.error('WebSocket error:', error);
+            ws.onerror = (error) => {
+                console.warn('WebSocket error - falling back to autonomous client physics:', error);
+                activateLocalEngineFallback();
+            };
             
             ws.onmessage = (event) => {
                 const data = JSON.parse(event.data);
-                
-                // Check if it's connection data
                 if (data.type === 'connections') {
                     updateConnectionsList(data.data);
                     return;
                 }
-                
                 updateUI(data);
             };
+        }
+        
+        function activateLocalEngineFallback() {
+            if (window.localEngine) window.localEngine.isPaused = false;
+            document.getElementById('connection-dot').classList.add('connected');
+            document.getElementById('connection-text').textContent = 'Digital Twin (50Hz)';
+            const wsStatus = document.getElementById('ws-status');
+            if (wsStatus) {
+                wsStatus.textContent = 'In-Browser 50Hz Engine';
+                wsStatus.className = 'connection-status connected';
+            }
         }
         
         function updateUI(data) {
@@ -2238,6 +2658,57 @@
                 mainMetricEl.style.color = '#ff8c00';  // Needs more time
             }
             
+            // Volumetric Field & FDM Biomechanical metrics
+            if (data.mean_g_edge !== undefined) {
+                document.getElementById('mean-g-edge').textContent = data.mean_g_edge.toFixed(4) + 'g';
+            }
+            if (data.safe_sample_radius_cm !== undefined) {
+                document.getElementById('safe-radius').textContent = data.safe_sample_radius_cm.toFixed(1) + 'cm';
+            }
+            if (data.shear_stress_mPa !== undefined) {
+                const shearEl = document.getElementById('fluid-shear');
+                shearEl.textContent = data.shear_stress_mPa.toFixed(2) + 'mPa';
+                if (data.shear_stress_mPa < 50) shearEl.style.color = 'var(--accent-green)';
+                else if (data.shear_stress_mPa < 200) shearEl.style.color = 'var(--accent-yellow)';
+                else shearEl.style.color = 'var(--accent-red)';
+            }
+            if (data.centrifugal_accel_edge_g !== undefined) {
+                document.getElementById('centrifugal-edge').textContent = data.centrifugal_accel_edge_g.toFixed(4) + 'g';
+            }
+            if (data.telemetry_residual_g !== undefined && data.telemetry_residual_g !== null) {
+                const hwEl = document.getElementById('hw-residual');
+                hwEl.textContent = data.telemetry_residual_g.toFixed(4) + 'g';
+                hwEl.style.color = data.telemetry_residual_g < 0.05 ? 'var(--accent-green)' : 'var(--accent-orange)';
+            } else {
+                const hwEl = document.getElementById('hw-residual');
+                hwEl.textContent = data.hardware_connected ? 'Syncing...' : 'Simulated';
+                hwEl.style.color = 'var(--text-secondary)';
+            }
+            if (data.direction_changes_count !== undefined) {
+                document.getElementById('zero-crossings').textContent = data.direction_changes_count.toLocaleString();
+            }
+            if (data.operation_mode) {
+                const modeMap = {
+                    'clinostat_3d': 'CLINOSTAT 3D',
+                    'clinostat_optimal': 'OPTIMAL RATIO',
+                    'rpm_stochastic': 'STOCHASTIC RPM'
+                };
+                const badgeEl = document.getElementById('active-mode-badge');
+                if (badgeEl) badgeEl.textContent = modeMap[data.operation_mode] || data.operation_mode.toUpperCase();
+                const selEl = document.getElementById('operation-mode-select');
+                if (selEl && document.activeElement !== selEl) {
+                    selEl.value = data.operation_mode;
+                }
+            }
+            if (data.sample_radius_cm !== undefined) {
+                const rValEl = document.getElementById('sample-radius-val');
+                if (rValEl) rValEl.textContent = data.sample_radius_cm.toFixed(1) + ' cm';
+                const rSliderEl = document.getElementById('sample-radius-slider');
+                if (rSliderEl && document.activeElement !== rSliderEl) {
+                    rSliderEl.value = data.sample_radius_cm;
+                }
+            }
+            
             // Update elapsed time
             const elapsed = data.time_elapsed;
             const hours = Math.floor(elapsed / 3600);
@@ -2255,8 +2726,8 @@
             // Update sphere trajectory (Fig 3C style)
             updateSphereTrajectory(data.gravity_x, data.gravity_y, data.gravity_z);
             
-            // Update sample points gravity (for enclosure validation)
-            updateSamplePointsGravity(data.gravity_x, data.gravity_y, data.gravity_z);
+            // Update sample points gravity with volumetric physics
+            updateSamplePointsGravity(data.gravity_x, data.gravity_y, data.gravity_z, data.omega_phi_rpm, data.omega_psi_rpm);
             
             // Update running state
             isRunning = data.status === 'running';
@@ -2321,25 +2792,313 @@
         }
         
         // ============================================
-        // CONTROLS
+        // IN-BROWSER 50Hz DIGITAL TWIN ENGINE (VERCEL / CLIENT FALLBACK)
+        // Equations: Yotov 2022 (Kinematics), Wadhwa 2026 (Volumetric & r_safe),
+        // Kim 2026 (Optimal S² ratio γ=1.146), Pica 2026 (Stochastic Reversal),
+        // Hasenstein & van Loon 2015 (1D Navier-Stokes FDM Fluid Shear Stress)
+        // ============================================
+        class BrowserDigitalTwinEngine {
+            constructor() {
+                this.isPaused = false;
+                this.isRunning = true;
+                
+                // Kinematics (Yotov et al. 2022)
+                this.phi_deg = 0.0;
+                this.psi_deg = 0.0;
+                this.omega_phi_rpm = 2.0;
+                this.omega_psi_rpm = 2.0;
+                this.target_omega_phi = 2.0;
+                this.target_omega_psi = 2.0;
+                this.base_inner_rpm = 2.0;
+                this.base_outer_rpm = 2.0;
+                
+                // Operation mode & chamber geometry
+                this.operation_mode = 'clinostat_3d';
+                this.sample_radius_cm = 5.0;
+                
+                // Mode A stochastic profile state (Pica et al. 2026)
+                this.stochastic_timer = 0.0;
+                this.next_stochastic_switch = 25.0;
+                this.direction_changes_count = 0;
+                
+                // Cumulative gravity averaging
+                this.elapsed_time = 0.0;
+                this.samples = 0;
+                this.sum_gx = 0.0;
+                this.sum_gy = 0.0;
+                this.sum_gz = 0.0;
+                this.min_g = 1.0;
+                this.max_g = 1.0;
+                
+                // Real-Time 1D Navier-Stokes Cylindrical FDM solver (Hasenstein & van Loon 2015)
+                this.fluid_N = 25;
+                this.fluid_u = new Float64Array(this.fluid_N);
+                this.fluid_nu = 1.004e-6; // m²/s (water at 20°C)
+                this.fluid_mu = 1.002e-3; // Pa·s (dynamic viscosity)
+                this.last_shear_stress = 0.0;
+                
+                // Telemetry discrepancy
+                this.lastHwG = null;
+                
+                // Dimensions (m)
+                this.inner_length = 0.80;
+                this.inner_breadth = 0.80;
+                this.outer_length = 1.50;
+                this.outer_breadth = 1.50;
+                
+                // Launch autonomous 50 Hz simulation timer (dt = 0.02s)
+                this.interval = setInterval(() => this.step(0.02), 20);
+            }
+            
+            start() {
+                this.isRunning = true;
+            }
+            
+            stop() {
+                this.isRunning = false;
+                this.target_omega_phi = 0.0;
+                this.target_omega_psi = 0.0;
+            }
+            
+            reset() {
+                this.phi_deg = 0.0;
+                this.psi_deg = 0.0;
+                this.elapsed_time = 0.0;
+                this.samples = 0;
+                this.sum_gx = 0.0;
+                this.sum_gy = 0.0;
+                this.sum_gz = 0.0;
+                this.min_g = 1.0;
+                this.max_g = 1.0;
+                this.direction_changes_count = 0;
+                this.fluid_u.fill(0);
+                this.last_shear_stress = 0.0;
+            }
+            
+            setTargetSpeeds(innerRpm, outerRpm) {
+                this.base_inner_rpm = innerRpm;
+                this.base_outer_rpm = outerRpm;
+                if (this.operation_mode === 'clinostat_3d') {
+                    this.target_omega_phi = innerRpm;
+                    this.target_omega_psi = outerRpm;
+                }
+            }
+            
+            setMode(mode) {
+                this.operation_mode = mode;
+                if (mode === 'clinostat_optimal') {
+                    // Kim et al. (2026) irrational ratio γ = 1.146 (2.0 / 2.292 RPM)
+                    this.target_omega_phi = 2.0;
+                    this.target_omega_psi = 2.292;
+                } else if (mode === 'clinostat_3d') {
+                    this.target_omega_phi = this.base_inner_rpm;
+                    this.target_omega_psi = this.base_outer_rpm;
+                } else if (mode === 'rpm_stochastic') {
+                    this.stochastic_timer = 0.0;
+                    this.next_stochastic_switch = 20.0 + Math.random() * 25.0;
+                }
+            }
+            
+            setSampleRadius(radius_cm) {
+                this.sample_radius_cm = Math.max(1.0, Math.min(20.0, radius_cm));
+                this.fluid_u.fill(0);
+            }
+            
+            step(dt) {
+                if (this.isPaused || !this.isRunning) return;
+                
+                this.elapsed_time += dt;
+                
+                // Stochastic reversal logic (Pica et al. 2026)
+                if (this.operation_mode === 'rpm_stochastic') {
+                    this.stochastic_timer += dt;
+                    if (this.stochastic_timer >= this.next_stochastic_switch) {
+                        this.stochastic_timer = 0.0;
+                        this.next_stochastic_switch = 20.0 + Math.random() * 25.0;
+                        this.direction_changes_count++;
+                        
+                        const factor = 0.80 + Math.random() * 0.20;
+                        if (Math.random() < 0.6) {
+                            this.target_omega_phi = (Math.random() > 0.5 ? 1 : -1) * this.base_inner_rpm * factor;
+                        }
+                        if (Math.random() < 0.6) {
+                            this.target_omega_psi = (Math.random() > 0.5 ? 1 : -1) * this.base_outer_rpm * factor;
+                        }
+                    }
+                } else if (this.operation_mode === 'clinostat_optimal') {
+                    this.target_omega_phi = 2.0;
+                    this.target_omega_psi = 2.292;
+                }
+                
+                // Acceleration ramping (1.5 RPM/s max acceleration)
+                const maxStep = 1.5 * dt;
+                const dPhi = this.target_omega_phi - this.omega_phi_rpm;
+                if (Math.abs(dPhi) <= maxStep) this.omega_phi_rpm = this.target_omega_phi;
+                else this.omega_phi_rpm += Math.sign(dPhi) * maxStep;
+                
+                const dPsi = this.target_omega_psi - this.omega_psi_rpm;
+                if (Math.abs(dPsi) <= maxStep) this.omega_psi_rpm = this.target_omega_psi;
+                else this.omega_psi_rpm += Math.sign(dPsi) * maxStep;
+                
+                // Angle integration: 1 RPM = 6 deg/sec
+                this.phi_deg = (this.phi_deg + this.omega_phi_rpm * 6.0 * dt) % 360.0;
+                if (this.phi_deg < 0) this.phi_deg += 360.0;
+                this.psi_deg = (this.psi_deg + this.omega_psi_rpm * 6.0 * dt) % 360.0;
+                if (this.psi_deg < 0) this.psi_deg += 360.0;
+                
+                // Yotov et al. (2022) Equations (1)-(2)
+                const phi_rad = this.phi_deg * Math.PI / 180.0;
+                const psi_rad = this.psi_deg * Math.PI / 180.0;
+                const gx = -Math.sin(phi_rad) * Math.cos(psi_rad);
+                const gy = Math.sin(phi_rad) * Math.sin(psi_rad);
+                const gz = Math.cos(phi_rad);
+                const instant_g = Math.sqrt(gx * gx + gy * gy + gz * gz);
+                
+                // Cumulative averaging
+                this.samples++;
+                this.sum_gx += gx;
+                this.sum_gy += gy;
+                this.sum_gz += gz;
+                const avg_gx = this.sum_gx / this.samples;
+                const avg_gy = this.sum_gy / this.samples;
+                const avg_gz = this.sum_gz / this.samples;
+                const mean_g = Math.sqrt(avg_gx * avg_gx + avg_gy * avg_gy + avg_gz * avg_gz);
+                
+                if (this.samples > 10) {
+                    this.min_g = Math.min(this.min_g, mean_g);
+                    this.max_g = Math.max(this.max_g, mean_g);
+                }
+                
+                // Wadhwa et al. (2026) Equation (5) Volumetric Acceleration Field
+                const omega_phi_rad_s = (this.omega_phi_rpm * 2.0 * Math.PI) / 60.0;
+                const omega_psi_rad_s = (this.omega_psi_rpm * 2.0 * Math.PI) / 60.0;
+                const omega_norm_rad_s = Math.sqrt(omega_phi_rad_s * omega_phi_rad_s + omega_psi_rad_s * omega_psi_rad_s);
+                const g0 = 9.80665;
+                
+                const sample_radius_m = this.sample_radius_cm / 100.0;
+                const a_cent_edge = (omega_norm_rad_s * omega_norm_rad_s * sample_radius_m) / g0;
+                const mean_g_edge = Math.sqrt(mean_g * mean_g + a_cent_edge * a_cent_edge);
+                const safe_sample_radius_cm = (0.001 * g0) / (omega_norm_rad_s * omega_norm_rad_s + 1e-9) * 100.0;
+                
+                // Hasenstein & van Loon (2015) 1D Navier-Stokes FDM Solver at 50Hz
+                const R = sample_radius_m;
+                const dr = R / (this.fluid_N - 1);
+                const u_wall = omega_norm_rad_s * R;
+                const u_new = new Float64Array(this.fluid_N);
+                
+                for (let i = 1; i < this.fluid_N - 1; i++) {
+                    const r_i = i * dr;
+                    const d2u = (this.fluid_u[i+1] - 2.0 * this.fluid_u[i] + this.fluid_u[i-1]) / (dr * dr);
+                    const du = (this.fluid_u[i+1] - this.fluid_u[i-1]) / (2.0 * dr);
+                    u_new[i] = this.fluid_u[i] + dt * this.fluid_nu * (d2u + (1.0 / r_i) * du - this.fluid_u[i] / (r_i * r_i));
+                }
+                u_new[0] = 0.0;
+                u_new[this.fluid_N - 1] = u_wall;
+                this.fluid_u.set(u_new);
+                
+                // Wall shear stress: τ_w = μ · |∂u_θ/∂r - u_θ/r|
+                const du_dr_wall = (this.fluid_u[this.fluid_N - 1] - this.fluid_u[this.fluid_N - 2]) / dr;
+                const shear_stress_mPa = this.fluid_mu * Math.abs(du_dr_wall - this.fluid_u[this.fluid_N - 1] / R) * 1000.0;
+                this.last_shear_stress = shear_stress_mPa;
+                
+                // Discrepancy telemetry
+                let telemetry_residual_g = null;
+                if (this.lastHwG !== null) {
+                    telemetry_residual_g = Math.abs(this.lastHwG - instant_g);
+                }
+                
+                // Velocity ratio γ (Kim et al. 2026)
+                const gamma = Math.abs(this.omega_psi_rpm) > 1e-4 ? Math.abs(this.omega_phi_rpm / this.omega_psi_rpm) : 999.0;
+                
+                const payload = {
+                    phi_deg: this.phi_deg,
+                    psi_deg: this.psi_deg,
+                    omega_phi_rpm: this.omega_phi_rpm,
+                    omega_psi_rpm: this.omega_psi_rpm,
+                    gamma: gamma,
+                    gravity_x: gx,
+                    gravity_y: gy,
+                    gravity_z: gz,
+                    instantaneous_g: instant_g,
+                    avg_gravity_x: avg_gx,
+                    avg_gravity_y: avg_gy,
+                    avg_gravity_z: avg_gz,
+                    mean_g: mean_g,
+                    min_g: this.min_g,
+                    max_g: this.max_g,
+                    samples: this.samples,
+                    time_elapsed: this.elapsed_time,
+                    status: this.isRunning ? 'running' : 'stopped',
+                    operation_mode: this.operation_mode,
+                    sample_radius_cm: this.sample_radius_cm,
+                    mean_g_edge: mean_g_edge,
+                    safe_sample_radius_cm: safe_sample_radius_cm,
+                    shear_stress_mPa: shear_stress_mPa,
+                    centrifugal_accel_edge_g: a_cent_edge,
+                    telemetry_residual_g: telemetry_residual_g,
+                    direction_changes_count: this.direction_changes_count,
+                    hardware_connected: serialConnected,
+                    inner_length: this.inner_length,
+                    inner_breadth: this.inner_breadth,
+                    outer_length: this.outer_length,
+                    outer_breadth: this.outer_breadth
+                };
+                
+                updateUI(payload);
+            }
+        }
+
+        // ============================================
+        // CONTROLS & COMMAND ROUTING
         // ============================================
         function startSimulation() {
-            sendCommand({ action: 'start' });
+            if (ws && ws.readyState === WebSocket.OPEN) {
+                sendCommand({ action: 'start' });
+            }
+            if (window.localEngine) window.localEngine.start();
         }
         
         function stopSimulation() {
-            sendCommand({ action: 'stop' });
+            if (ws && ws.readyState === WebSocket.OPEN) {
+                sendCommand({ action: 'stop' });
+            }
+            if (window.localEngine) window.localEngine.stop();
         }
         
         function resetSimulation() {
-            sendCommand({ action: 'reset' });
+            if (ws && ws.readyState === WebSocket.OPEN) {
+                sendCommand({ action: 'reset' });
+            }
+            if (window.localEngine) window.localEngine.reset();
             gravityData = [];
+            gxData = [];
+            gyData = [];
+            gzData = [];
+            trajectoryPoints = [];
         }
         
         function sendCommand(cmd) {
             if (ws && ws.readyState === WebSocket.OPEN) {
                 ws.send(JSON.stringify(cmd));
             }
+        }
+        
+        function changeOperationMode() {
+            const selectEl = document.getElementById('operation-mode-select');
+            const mode = selectEl.value;
+            if (ws && ws.readyState === WebSocket.OPEN) {
+                sendCommand({ action: 'mode', mode: mode });
+            }
+            if (window.localEngine) window.localEngine.setMode(mode);
+        }
+        
+        function updateSampleRadius(val) {
+            const radius = parseFloat(val);
+            document.getElementById('sample-radius-val').textContent = radius.toFixed(1) + ' cm';
+            if (ws && ws.readyState === WebSocket.OPEN) {
+                sendCommand({ action: 'sample_radius', radius_cm: radius });
+            }
+            if (window.localEngine) window.localEngine.setSampleRadius(radius);
         }
         
         function updateConfig() {
@@ -2350,11 +3109,16 @@
             document.getElementById('inner-rpm-slider').value = innerRpm;
             document.getElementById('outer-rpm-slider').value = outerRpm;
             
-            sendCommand({
-                action: 'config',
-                inner_rpm: innerRpm,
-                outer_rpm: outerRpm
-            });
+            if (ws && ws.readyState === WebSocket.OPEN) {
+                sendCommand({
+                    action: 'config',
+                    inner_rpm: innerRpm,
+                    outer_rpm: outerRpm
+                });
+            }
+            if (window.localEngine) {
+                window.localEngine.setTargetSpeeds(innerRpm, outerRpm);
+            }
         }
         
         function updateFromSlider(which) {
@@ -2365,13 +3129,11 @@
         }
         
         function updatePayloadDimensions() {
-            // Get payload dimensions from inputs (cm to m)
             const px = parseFloat(document.getElementById('payload-x').value) / 100 || 0.50;
             const py = parseFloat(document.getElementById('payload-y').value) / 100 || 0.50;
             const pz = parseFloat(document.getElementById('payload-z').value) / 100 || 0.50;
             const showPayload = document.getElementById('show-payload').value === 'yes';
             
-            // Validate payload fits inside inner frame
             if (px >= frameDimensions.innerLength || py >= frameDimensions.innerBreadth || pz >= Math.min(frameDimensions.innerLength, frameDimensions.innerBreadth)) {
                 alert(`Payload (${(px*100).toFixed(0)}×${(py*100).toFixed(0)}×${(pz*100).toFixed(0)} cm) must be smaller than inner frame (${(frameDimensions.innerLength*100).toFixed(0)}×${(frameDimensions.innerBreadth*100).toFixed(0)} cm)!`);
                 return;
@@ -2379,7 +3141,6 @@
             
             payloadDimensions = { x: px, y: py, z: pz };
             
-            // Recreate payload box
             if (showPayload) {
                 createPayloadBox();
             } else {
@@ -2390,18 +3151,15 @@
                 }
             }
             
-            // Auto-fit camera to new dimensions
             autoFitCamera();
         }
         
         function updateFrameDimensions() {
-            // Get dimensions from inputs (values in cm, convert to m)
             const innerL = parseFloat(document.getElementById('inner-length').value) / 100 || 0.80;
             const innerB = parseFloat(document.getElementById('inner-breadth').value) / 100 || 0.80;
             const outerL = parseFloat(document.getElementById('outer-length').value) / 100 || 1.50;
             const outerB = parseFloat(document.getElementById('outer-breadth').value) / 100 || 1.50;
             
-            // Validate: outer > inner > payload
             const maxPayload = Math.max(payloadDimensions.x, payloadDimensions.y, payloadDimensions.z);
             if (innerL <= maxPayload || innerB <= maxPayload) {
                 alert(`Inner frame must be larger than payload (${(maxPayload*100).toFixed(0)} cm)!`);
@@ -2419,10 +3177,7 @@
                 outerBreadth: outerB
             };
             
-            // Recreate 3D frames
             createFrames();
-            
-            // Auto-fit camera to new dimensions
             autoFitCamera();
             
             sendCommand({
@@ -2438,11 +3193,9 @@
             const innerTilt = parseFloat(document.getElementById('inner-tilt').value) || 0;
             const outerTilt = parseFloat(document.getElementById('outer-tilt').value) || 0;
             
-            // Set TARGET tilt for smooth transition (not immediate)
             targetTilt.inner = innerTilt;
             targetTilt.outer = outerTilt;
             
-            // Send to server for physics calculation
             sendCommand({
                 action: 'axis_inclination',
                 inner_tilt: innerTilt,
@@ -2472,23 +3225,36 @@
         setInterval(updateTimestamp, 1000);
         
         // ============================================
-        // INIT
+        // INIT & LAUNCH
         // ============================================
         window.addEventListener('load', () => {
             init3D();
             initChart();
             initSphereVisualization();
+            
+            // Instantiate autonomous browser engine immediately
+            window.localEngine = new BrowserDigitalTwinEngine();
+            
             connectWebSocket();
             updateTimestamp();
             
-            // Auto-fit camera to show entire RPM on load
             setTimeout(() => {
                 autoFitCamera();
             }, 100);
             
-            // Initial connection scan after delay
             setTimeout(scanConnections, 1000);
         });
     </script>
+
+    <!-- Hardware Tests Icon Button (bottom-right corner) -->
+    <a href="/api/hardware/tests/dashboard" target="_blank"
+       title="Hardware Tests Dashboard"
+       style="position: fixed; bottom: 14px; right: 14px; width: 34px; height: 34px;
+              display: flex; align-items: center; justify-content: center;
+              background: rgba(0,229,255,0.08); border: 1px solid rgba(0,229,255,0.35);
+              border-radius: 6px; color: rgba(0,229,255,0.6); text-decoration: none;
+              font-size: 15px; z-index: 9999; transition: all 0.25s;"
+       onmouseover="this.style.background='rgba(0,229,255,0.18)'; this.style.borderColor='#00e5ff'; this.style.color='#00e5ff'; this.style.boxShadow='0 0 10px rgba(0,229,255,0.3)';"
+       onmouseout="this.style.background='rgba(0,229,255,0.08)'; this.style.borderColor='rgba(0,229,255,0.35)'; this.style.color='rgba(0,229,255,0.6)'; this.style.boxShadow='none';">&#9881;</a>
 </body>
 </html>

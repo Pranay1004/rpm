@@ -131,7 +131,7 @@ If publishing or presenting this work, cite:
 2. Software Implementation:
    [Your Name], "RPM Digital Twin Simulator" (2026)
    AI-assisted development with GitHub Copilot and Claude
-   https://github.com/iist-aero/rpm
+   https://github.com/Pranay1004/random-positioning-machine-iist
 
 
 Disclaimer

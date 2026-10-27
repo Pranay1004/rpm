@@ -18,11 +18,16 @@ Copyright (c) 2024 RPM Digital Twin Team
 from __future__ import annotations
 
 import asyncio
+import os
 import signal
 import sys
 from pathlib import Path
 from typing import Optional
 import argparse
+
+cache_dir = Path(__file__).parent.parent / ".cache" / "matplotlib"
+cache_dir.mkdir(parents=True, exist_ok=True)
+os.environ.setdefault("MPLCONFIGDIR", str(cache_dir))
 
 import numpy as np
 import yaml
@@ -34,7 +39,9 @@ PROJECT_ROOT = SRC_DIR.parent
 sys.path.insert(0, str(SRC_DIR))
 
 # Import subsystems
-from hardware_interface import SerialManager, RPMStateSnapshot
+from hardware_interface import SerialManager, RPMStateSnapshot, ArduinoConfig
+from hardware_interface.serial_manager import PacketType
+from hardware_interface.models import IMUDataPacket, EncoderDataPacket, MotorStatusPacket
 from simulation import RPMSimulator, RPMState, RPMGeometry, OperationMode
 from data_pipeline import StateManager, DataPipeline, ExperimentRecorder
 from visualization import RPMDashboard
@@ -162,37 +169,42 @@ class RPMApplication:
         hw_config = self.config.get("hardware", {})
         arduino_config = hw_config.get("arduino", {})
         
-        port = arduino_config.get("port", "/dev/tty.usbmodem*")
+        port = arduino_config.get("port", "auto")
         baudrate = arduino_config.get("baudrate", 115200)
         
-        self.serial_manager = SerialManager(port=port, baudrate=baudrate)
+        ard_cfg = ArduinoConfig(
+            device_id="arduino_main",
+            name="Arduino RPM Controller",
+            port=port,
+            baudrate=baudrate,
+        )
+        self.serial_manager = SerialManager(config=ard_cfg)
         
         # Register callbacks
-        self.serial_manager.register_callback(0x01, self._on_imu_data)
-        self.serial_manager.register_callback(0x02, self._on_encoder_data)
-        self.serial_manager.register_callback(0x03, self._on_motor_status)
+        self.serial_manager.register_callback(PacketType.IMU_DATA, self._on_imu_data)
+        self.serial_manager.register_callback(PacketType.ENCODER_DATA, self._on_encoder_data)
+        self.serial_manager.register_callback(PacketType.MOTOR_STATUS, self._on_motor_status)
         
         # Try to connect
         connected = await self.serial_manager.connect()
         if connected:
-            logger.info(f"Connected to Arduino on {port}")
+            logger.info(f"Connected to Arduino on {self.serial_manager.config.port}")
+            await self.serial_manager.start()
         else:
-            logger.warning("Failed to connect to Arduino, running in simulation-only mode")
+            logger.warning("No real RPM hardware detected on serial, running in simulation mode")
             self._hardware_mode = False
     
-    def _on_imu_data(self, data: bytes) -> None:
+    def _on_imu_data(self, packet: IMUDataPacket) -> None:
         """Handle incoming IMU data from Arduino."""
-        # Parse and push to data pipeline
-        # This will be processed and update state
-        pass
+        logger.debug(f"IMU data: ax={packet.accel_x:.2f}, ay={packet.accel_y:.2f}, az={packet.accel_z:.2f}")
     
-    def _on_encoder_data(self, data: bytes) -> None:
+    def _on_encoder_data(self, packet: EncoderDataPacket) -> None:
         """Handle incoming encoder data from Arduino."""
-        pass
+        logger.debug(f"Encoder data: angle={packet.angle:.2f}, vel={packet.velocity:.2f}")
     
-    def _on_motor_status(self, data: bytes) -> None:
+    def _on_motor_status(self, packet: MotorStatusPacket) -> None:
         """Handle incoming motor status from Arduino."""
-        pass
+        logger.debug(f"Motor status: {packet.state.value if hasattr(packet.state, 'value') else packet.state}")
     
     async def run_simulation(
         self,
@@ -273,21 +285,16 @@ class RPMApplication:
             logger.warning("Hardware mode not available")
             return False
         
-        import struct
-        
-        motor_id = 0 if motor == "inner" else 1
-        acceleration = 100.0  # Default acceleration
-        
-        payload = struct.pack('<Bff', motor_id, rpm, acceleration)
-        return await self.serial_manager.send_packet(0x20, payload)
+        return await self.serial_manager.send_motor_command(motor, rpm, 100.0)
     
     async def emergency_stop(self) -> None:
         """Emergency stop all motors."""
         logger.warning("EMERGENCY STOP triggered")
         
         if self.serial_manager and self._hardware_mode:
-            # Send emergency stop command
-            await self.serial_manager.send_packet(0x21, bytes([0x00]))
+            # Send emergency stop command (speed = 0)
+            await self.serial_manager.send_motor_command("inner", 0.0, 500.0)
+            await self.serial_manager.send_motor_command("outer", 0.0, 500.0)
         
         if self.simulator and self._simulation_mode:
             self.simulator.emergency_stop()
@@ -337,12 +344,39 @@ class RPMApplication:
         else:
             raise ValueError(f"Unknown format: {format}")
     
-    def launch_dashboard(self) -> None:
-        """Launch the visualization dashboard."""
-        if self.dashboard:
-            self.dashboard.show()
-        else:
-            logger.warning("Dashboard not initialized")
+    async def launch_dashboard(self) -> None:
+        """Launch the FastAPI web dashboard (server.py + static/index.html)."""
+        try:
+            import uvicorn
+            logger.info("Starting FastAPI web dashboard at http://0.0.0.0:8080")
+            print("\n" + "=" * 60)
+            print("  RPM Digital Twin - Web Dashboard")
+            print("=" * 60)
+            print("  Local:   http://localhost:8080")
+            print("  Network: http://0.0.0.0:8080")
+            print("  HW Tests: http://localhost:8080/api/hardware/tests/dashboard")
+            print("  Press Ctrl+C to stop")
+            print("=" * 60 + "\n")
+            
+            server_dir = Path(__file__).parent / "webapp"
+            if str(server_dir) not in sys.path:
+                sys.path.insert(0, str(server_dir))
+            
+            from webapp.server import app as web_app
+            config = uvicorn.Config(
+                web_app,
+                host="0.0.0.0",
+                port=8080,
+                log_level="info",
+            )
+            server = uvicorn.Server(config)
+            await server.serve()
+        except Exception as e:
+            logger.error(f"Failed to launch web dashboard: {e}")
+            if self.dashboard:
+                self.dashboard.show()
+            else:
+                logger.warning("Dashboard not initialized")
     
     def _print_status(self) -> None:
         """Print current application status."""
@@ -504,9 +538,9 @@ async def main():
             print("RPM Digital Twin is running. Press Ctrl+C to stop.")
             
             if args.dashboard:
-                app.launch_dashboard()
-            
-            await app.wait_for_shutdown()
+                await app.launch_dashboard()
+            else:
+                await app.wait_for_shutdown()
     
     finally:
         await app.stop()

@@ -267,12 +267,18 @@ class SerialManager:
             Port device path or None if not found
         """
         for port in serial.tools.list_ports.comports():
-            # Common Arduino identifiers
-            if any(id in port.description.lower() for id in ['arduino', 'ch340', 'cp210', 'ftdi']):
-                logger.info(f"Auto-detected Arduino on {port.device}")
+            desc = (port.description or '').lower()
+            mfg = (port.manufacturer or '').lower()
+            dev = (port.device or '').lower()
+            hwid = (port.hwid or '').lower()
+            
+            # Common microcontroller identifiers
+            keywords = ['arduino', 'ch340', 'cp210', 'ftdi', 'pico', 'rp2040', '2e8a', 'teensy', 'wch']
+            if any(k in desc or k in mfg or k in hwid for k in keywords):
+                logger.info(f"Auto-detected microcontroller on {port.device} ({port.description})")
                 return port.device
-            if any(id in (port.manufacturer or '').lower() for id in ['arduino', 'wch']):
-                logger.info(f"Auto-detected Arduino on {port.device}")
+            if 'usbmodem' in dev or 'usbserial' in dev:
+                logger.info(f"Auto-detected USB serial device on {port.device} ({port.description})")
                 return port.device
         return None
     
@@ -284,7 +290,7 @@ class SerialManager:
             True if connection successful
         """
         self._status = ConnectionStatus.CONNECTING
-        logger.info(f"Connecting to serial device...")
+        logger.info("Connecting to serial device...")
         
         try:
             # Determine port
@@ -292,7 +298,7 @@ class SerialManager:
             if port == "auto":
                 port = self._find_arduino_port()
                 if not port:
-                    logger.error("Could not auto-detect Arduino port")
+                    logger.warning("Could not auto-detect Arduino port (no real RPM hardware connected)")
                     self._status = ConnectionStatus.ERROR
                     return False
             
@@ -315,8 +321,8 @@ class SerialManager:
             logger.success(f"Connected to {port} at {self.config.baudrate} baud")
             return True
             
-        except serial.SerialException as e:
-            logger.error(f"Serial connection failed: {e}")
+        except (serial.SerialException, Exception) as e:
+            logger.warning(f"Serial connection failed: {e}")
             self._status = ConnectionStatus.ERROR
             return False
     

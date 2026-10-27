@@ -21,8 +21,12 @@ Digital_Twin_Rust/target/
 **/__pycache__/
 **/.pytest_cache/
 *.pyc
+**/.venv/
+**/venv/
 .venv/
 venv/
 
 # Logs
 *.log
+.gitnexus
+.claude/

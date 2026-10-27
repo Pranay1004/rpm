@@ -44,7 +44,8 @@ class OperationMode(Enum):
     """RPM operation modes."""
     CLINOSTAT_2D = "clinostat_2d"
     CLINOSTAT_3D = "clinostat_3d"
-    RANDOM = "random"
+    CLINOSTAT_OPTIMAL = "clinostat_optimal"  # Non-harmonic speed ratio (Kim et al. 2026)
+    RANDOM = "random"                        # Stochastic zero-crossings (Pica et al. 2026)
     PARTIAL_GRAVITY = "partial_gravity"
     CUSTOM = "custom"
 
@@ -296,6 +297,29 @@ class GravityVectorCalculator:
         a_cent_sample = R_combined.T @ a_cent_lab
         
         return a_cent_sample
+
+    def compute_euler_acceleration(
+        self,
+        position: NDArray,
+        alpha_inner: float,
+        alpha_outer: float,
+        theta_inner: float,
+        theta_outer: float
+    ) -> NDArray:
+        """
+        Compute Euler acceleration at a point: a_euler = α × r
+        Arises during motor speed changes and direction reversals.
+        """
+        alpha_i_lab = np.array([alpha_inner, 0.0, 0.0])
+        alpha_o_lab = np.array([0.0, alpha_outer, 0.0])
+        R_outer = RotationMatrices.Ry(theta_outer)
+        alpha_total_lab = R_outer @ alpha_i_lab + alpha_o_lab
+        
+        R_combined = RotationMatrices.combined_rotation(theta_inner, theta_outer)
+        position_lab = R_combined @ position
+        
+        a_euler_lab = np.cross(alpha_total_lab, position_lab)
+        return R_combined.T @ a_euler_lab
     
     def compute_effective_gravity(
         self,
@@ -303,7 +327,8 @@ class GravityVectorCalculator:
         position: Optional[NDArray] = None
     ) -> NDArray:
         """
-        Compute total effective gravity (including centrifugal effects).
+        Compute total effective gravity including gravitational,
+        centrifugal, and Euler accelerations (Wadhwa et al. 2026 Eq. 5).
         
         Args:
             state: Current RPM state
@@ -329,7 +354,17 @@ class GravityVectorCalculator:
             state.theta_outer
         )
         
-        return g_sample + a_cent
+        # Euler component
+        a_euler = self.compute_euler_acceleration(
+            position,
+            state.alpha_inner,
+            state.alpha_outer,
+            state.theta_inner,
+            state.theta_outer
+        )
+        
+        # Fictitious inertial forces oppose frame acceleration
+        return g_sample - a_cent - a_euler
     
     def compute_g_magnitude(
         self,
@@ -347,7 +382,130 @@ class GravityVectorCalculator:
             Effective gravity magnitude in g-units (1g = 9.81 m/s²)
         """
         g_eff = self.compute_effective_gravity(state, position)
-        return np.linalg.norm(g_eff) / EARTH_GRAVITY
+        return float(np.linalg.norm(g_eff) / EARTH_GRAVITY)
+
+    def compute_safe_sample_radius(
+        self,
+        omega_inner: float,
+        omega_outer: float,
+        target_g: float = 0.001
+    ) -> float:
+        """
+        Compute maximum sample radius (in meters) to guarantee
+        centrifugal acceleration remains below target microgravity threshold.
+        
+        Based on Hasenstein & van Loon and Wadhwa et al. 2026.
+        """
+        omega_eff = np.sqrt(omega_inner**2 + omega_outer**2)
+        if omega_eff < 1e-4:
+            return 0.50  # 50 cm max enclosure limit
+        
+        # a_cent = ω² * r <= target_g * 9.80665 m/s²
+        r_safe = (target_g * EARTH_GRAVITY) / (omega_eff**2)
+        return float(min(r_safe, 0.50))
+
+    def compute_fluid_shear_stress(
+        self,
+        omega_inner: float,
+        omega_outer: float,
+        well_radius: float = 0.015,
+        viscosity: float = 0.001,
+        density: float = 1000.0
+    ) -> float:
+        """
+        Estimate fluid shear stress in cell culture vessels (mPa).
+        
+        Based on Stokes boundary layer model (Hasenstein & van Loon).
+        """
+        omega_eff = np.sqrt(omega_inner**2 + omega_outer**2)
+        if omega_eff < 1e-4:
+            return 0.0
+        
+        nu = viscosity / density  # Kinematic viscosity (m²/s)
+        delta = np.sqrt(2 * nu / omega_eff)  # Stokes boundary layer thickness (m)
+        tau_pa = viscosity * (omega_eff * well_radius) / delta  # Shear stress (Pa)
+        return float(tau_pa * 1000.0)  # Convert to mPa
+
+
+class RealTimeFluidFDMSolver:
+    """
+    Real-Time 1D Finite Difference Method (FDM) Navier-Stokes solver.
+    
+    Solves the transient azimuthal momentum diffusion equation in cylindrical coordinates
+    for cell culture vessels (petri dishes, microwells, T-flasks) mounted on the RPM:
+        ∂u_θ/∂t = ν [ ∂²u_θ/∂r² + (1/r) ∂u_θ/∂r - u_θ/r² ]
+    
+    Boundary conditions:
+        r = 0: u_θ(0, t) = 0 (symmetry at vessel axis)
+        r = R: u_θ(R, t) = ω_eff(t) * R (no-slip rotating vessel wall)
+    
+    Computes exact real-time unsteady fluid velocity profile u(r, t) and wall shear stress:
+        τ_w = μ | ∂u_θ/∂r - u_θ/r |_{r=R} (mPa)
+    
+    Captures transient shear spikes during motor accelerations and directional reversals
+    (Pica et al. 2026, Hasenstein & van Loon).
+    """
+    def __init__(
+        self,
+        vessel_radius_m: float = 0.0175,  # 35mm dish / 6-well plate radius (17.5 mm)
+        num_grid_points: int = 25,
+        kinematic_viscosity: float = 1.0e-6,  # m²/s (standard culture medium at 37°C)
+        dynamic_viscosity: float = 1.0e-3,   # Pa·s
+    ):
+        self.R = vessel_radius_m
+        self.N = num_grid_points
+        self.nu = kinematic_viscosity
+        self.mu = dynamic_viscosity
+        self.r = np.linspace(0.0, self.R, self.N)
+        self.dr = self.r[1] - self.r[0]
+        self.u = np.zeros(self.N, dtype=np.float64)  # Fluid velocity profile (m/s)
+        self.wall_shear_stress_mPa: float = 0.0
+        self.max_shear_stress_mPa: float = 0.0
+
+    def reset(self) -> None:
+        self.u.fill(0.0)
+        self.wall_shear_stress_mPa = 0.0
+        self.max_shear_stress_mPa = 0.0
+
+    def step(self, omega_eff_rad_s: float, dt: float = 0.02) -> float:
+        """
+        Advance the fluid momentum diffusion by dt using Finite Difference Method.
+        Returns the instantaneous wall shear stress in mPa.
+        """
+        if dt <= 0:
+            return self.wall_shear_stress_mPa
+            
+        u_new = self.u.copy()
+        
+        # Vectorized internal FDM diffusion for r in (0, R)
+        r_int = self.r[1:-1]
+        u_int = self.u[1:-1]
+        u_plus = self.u[2:]
+        u_minus = self.u[:-2]
+        
+        d2u_dr2 = (u_plus - 2.0 * u_int + u_minus) / (self.dr ** 2)
+        du_dr = (u_plus - u_minus) / (2.0 * self.dr)
+        
+        # Laplacian in cylindrical coordinates for azimuthal velocity
+        laplacian = d2u_dr2 + (1.0 / r_int) * du_dr - (u_int / (r_int ** 2))
+        
+        # Update interior velocity profile
+        u_new[1:-1] = u_int + dt * self.nu * laplacian
+        
+        # Boundary conditions
+        u_new[0] = 0.0
+        u_new[-1] = omega_eff_rad_s * self.R
+        
+        self.u = u_new
+        
+        # Compute wall shear stress via 2nd-order one-sided derivative at wall
+        dudr_wall = (3.0 * self.u[-1] - 4.0 * self.u[-2] + self.u[-3]) / (2.0 * self.dr)
+        rate_of_strain_wall = abs(dudr_wall - self.u[-1] / self.R)
+        self.wall_shear_stress_mPa = float(self.mu * rate_of_strain_wall * 1000.0)
+        self.max_shear_stress_mPa = max(self.max_shear_stress_mPa, self.wall_shear_stress_mPa)
+        
+        return self.wall_shear_stress_mPa
+
 
 
 class RPMSimulator:
@@ -387,12 +545,16 @@ class RPMSimulator:
         # Mode-specific parameters
         self._mode_params = {
             OperationMode.CLINOSTAT_3D: {
-                "omega_inner": 2.0 * np.pi / 60,  # 1 RPM
-                "omega_outer": 2.0 * np.pi / 60,  # 1 RPM
+                "omega_inner": 2.0 * np.pi / 30,  # 2.0 RPM
+                "omega_outer": 2.0 * np.pi / 30,  # 2.0 RPM
+            },
+            OperationMode.CLINOSTAT_OPTIMAL: {
+                "omega_inner": 2.000 * np.pi / 30,  # 2.000 RPM
+                "omega_outer": 2.292 * np.pi / 30,  # 2.292 RPM (ratio 1.146 - avoids pole loops, Kim et al. 2026)
             },
             OperationMode.RANDOM: {
-                "omega_range": (0.5 * np.pi / 30, 5.0 * np.pi / 30),  # 1-10 RPM in rad/s
-                "direction_change_interval": (2.0, 10.0),
+                "omega_range": (0.837, 1.047),  # 48°/s to 60°/s (Pica et al. 2026 Mode A)
+                "direction_change_interval": (20.0, 45.0),  # Zero-crossings every 20-45s
             }
         }
         
@@ -405,6 +567,9 @@ class RPMSimulator:
         # Random mode state
         self._next_direction_change = 0.0
         self._rng = np.random.default_rng()
+        
+        # Real-time Fluid Dynamics (FDM) solver for shear stress
+        self.fdm_solver = RealTimeFluidFDMSolver()
         
         logger.info(f"RPM Simulator initialized in {mode.value} mode")
     
@@ -467,8 +632,13 @@ class RPMSimulator:
         # Simple velocity control (first-order dynamics)
         tau = 0.5  # Time constant for velocity response
         
-        self.state.omega_inner += (self.state.omega_inner_setpoint - self.state.omega_inner) * dt / tau
-        self.state.omega_outer += (self.state.omega_outer_setpoint - self.state.omega_outer) * dt / tau
+        new_omega_i = self.state.omega_inner + (self.state.omega_inner_setpoint - self.state.omega_inner) * dt / tau
+        new_omega_o = self.state.omega_outer + (self.state.omega_outer_setpoint - self.state.omega_outer) * dt / tau
+        
+        self.state.alpha_inner = (new_omega_i - self.state.omega_inner) / dt if dt > 0 else 0.0
+        self.state.alpha_outer = (new_omega_o - self.state.omega_outer) / dt if dt > 0 else 0.0
+        self.state.omega_inner = new_omega_i
+        self.state.omega_outer = new_omega_o
         
         # Update positions
         self.state.theta_inner += self.state.omega_inner * dt
@@ -516,7 +686,15 @@ class RPMSimulator:
             cutoff = self.state.time - 5.0
             self._gravity_history = [(t, g) for t, g in self._gravity_history if t > cutoff]
         
+        # Advance Real-Time Fluid FDM solver
+        omega_eff = np.sqrt(self.state.omega_inner**2 + self.state.omega_outer**2)
+        self.fdm_solver.step(omega_eff, dt)
+        
         return self.state
+    
+    def get_fluid_shear_stress(self) -> float:
+        """Get instantaneous wall shear stress from FDM solver in mPa."""
+        return self.fdm_solver.wall_shear_stress_mPa
     
     def _update_mode_behavior(self, dt: float) -> None:
         """Update mode-specific behavior (e.g., random direction changes)."""
@@ -534,6 +712,10 @@ class RPMSimulator:
                 self._next_direction_change = self.state.time + self._rng.uniform(*interval_range)
                 
                 logger.trace(f"Random direction change: ωi={self.state.omega_inner_setpoint:.3f}, ωo={self.state.omega_outer_setpoint:.3f}")
+        elif self.mode == OperationMode.CLINOSTAT_OPTIMAL:
+            params = self._mode_params[OperationMode.CLINOSTAT_OPTIMAL]
+            self.state.omega_inner_setpoint = params["omega_inner"]
+            self.state.omega_outer_setpoint = params["omega_outer"]
     
     def simulate(
         self,
