@@ -50,11 +50,6 @@ class RPMCadAssembly {
             ior: 1.586
         });
 
-        this.specimenMat = new THREE.MeshStandardMaterial({
-            color: 0x059669,       // Biological Culture Specimen / Petri Dish
-            roughness: 0.4
-        });
-
         this.probeMat = new THREE.MeshStandardMaterial({
             color: 0xe11d48,       // Probe point marker (crimson red)
             roughness: 0.2,
@@ -165,18 +160,22 @@ class RPMCadAssembly {
 
         // =====================================================================
         // PART 9: PAYLOAD SUPPORT RODS (2x Ø10 mm x 350 mm SS rods spanning frame)
+        // Per DWG 03: Rods span horizontally across the inner frame to secure payload
         // =====================================================================
         const rodGeom = new THREE.CylinderGeometry(0.005, 0.005, 0.35, 16);
+        rodGeom.rotateZ(Math.PI / 2.0); // Orient horizontally along X-axis
+
         const rod1 = new THREE.Mesh(rodGeom, this.shaftMat);
-        rod1.position.set(-0.06, 0.0, 0.0);
+        rod1.position.set(0.0, 0.05, 0.0);
         this.innerFrameGroup.add(rod1);
 
         const rod2 = new THREE.Mesh(rodGeom, this.shaftMat);
-        rod2.position.set(0.06, 0.0, 0.0);
+        rod2.position.set(0.0, -0.05, 0.0);
         this.innerFrameGroup.add(rod2);
 
         // =====================================================================
         // PART 3: PAYLOAD HOLDER CUBE (200 x 200 mm Optical Polycarbonate)
+        // Per DWG 02 Part 3: Solid machined polycarbonate with 120 x 120 mm central chamber
         // =====================================================================
         this.innerFrameGroup.add(this.payloadGroup);
         this.payloadGroup.add(this.probePointsGroup);
@@ -188,25 +187,55 @@ class RPMCadAssembly {
         if (this.payloadMesh) {
             this.payloadGroup.remove(this.payloadMesh);
         }
-        const cubeGeom = new THREE.BoxGeometry(w, h, d);
-        this.payloadMesh = new THREE.Mesh(cubeGeom, this.polycarbMat);
-        
-        // Chamfer edge lines
-        const cubeEdges = new THREE.EdgesGeometry(cubeGeom);
-        const cubeLines = new THREE.LineSegments(cubeEdges, new THREE.LineBasicMaterial({ color: 0x60a5fa, transparent: true, opacity: 0.6 }));
-        this.payloadMesh.add(cubeLines);
+        this.payloadMesh = new THREE.Group();
 
-        // Internal specimen cavity
-        const cavityGeom = new THREE.BoxGeometry(w * 0.6, h * 0.6, d * 0.6);
+        // 1. Outer Polycarbonate Enclosure Block (200x200x200 mm)
+        const outerCubeGeom = new THREE.BoxGeometry(w, h, d);
+        const outerCube = new THREE.Mesh(outerCubeGeom, this.polycarbMat);
+        this.payloadMesh.add(outerCube);
+
+        // Precision chamfer edges (subtle engineering outline, not cartoon wireframe)
+        const outerEdgesGeom = new THREE.EdgesGeometry(outerCubeGeom);
+        const outerEdges = new THREE.LineSegments(
+            outerEdgesGeom,
+            new THREE.LineBasicMaterial({ color: 0x94a3b8, transparent: true, opacity: 0.4 })
+        );
+        this.payloadMesh.add(outerEdges);
+
+        // 2. Milled Inner Chamber Cavity (120x120x120 mm per DWG 02)
+        const cavityW = Math.min(w * 0.6, 0.12);
+        const cavityH = Math.min(h * 0.6, 0.12);
+        const cavityD = Math.min(d * 0.6, 0.12);
+        const cavityGeom = new THREE.BoxGeometry(cavityW, cavityH, cavityD);
+        const cavityMat = new THREE.MeshPhysicalMaterial({
+            color: 0xffffff,
+            transparent: true,
+            opacity: 0.2,
+            roughness: 0.05,
+            transmission: 0.95,
+            ior: 1.58
+        });
+        const cavityMesh = new THREE.Mesh(cavityGeom, cavityMat);
+        this.payloadMesh.add(cavityMesh);
+
+        // Internal chamber edge lines (very subtle)
         const cavityEdges = new THREE.EdgesGeometry(cavityGeom);
-        const cavityWire = new THREE.LineSegments(cavityEdges, new THREE.LineBasicMaterial({ color: 0x2563eb, linewidth: 1.5 }));
-        this.payloadMesh.add(cavityWire);
+        const cavityLines = new THREE.LineSegments(
+            cavityEdges,
+            new THREE.LineBasicMaterial({ color: 0xcbd5e1, transparent: true, opacity: 0.35 })
+        );
+        this.payloadMesh.add(cavityLines);
 
-        // Biological Specimen / Culture Plate in Center of Chamber
-        const specimenGeom = new THREE.CylinderGeometry(w * 0.22, w * 0.22, 0.012, 24);
-        const specimenMesh = new THREE.Mesh(specimenGeom, this.specimenMat);
-        specimenMesh.position.set(0.0, -h * 0.1, 0.0);
-        this.payloadMesh.add(specimenMesh);
+        // 3. Collar Bushings where the two horizontal Ø10 mm support rods pass through
+        const collarGeom = new THREE.CylinderGeometry(0.007, 0.007, w * 1.02, 16);
+        collarGeom.rotateZ(Math.PI / 2.0);
+        const collar1 = new THREE.Mesh(collarGeom, this.shaftMat);
+        collar1.position.set(0.0, 0.05, 0.0);
+        this.payloadMesh.add(collar1);
+
+        const collar2 = new THREE.Mesh(collarGeom, this.shaftMat);
+        collar2.position.set(0.0, -0.05, 0.0);
+        this.payloadMesh.add(collar2);
 
         this.payloadGroup.add(this.payloadMesh);
     }

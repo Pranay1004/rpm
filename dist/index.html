@@ -412,6 +412,15 @@
                             Full Schematic
                         </button>
                     </div>
+
+                    <!-- Real Engineering Wiring Diagram Image Embed -->
+                    <div style="margin: 8px 0 12px 0; cursor: pointer; border: 1.5px solid var(--border-color); border-radius: 4px; overflow: hidden; background: #ffffff; box-shadow: 0 1px 3px rgba(0,0,0,0.06);" onclick="toggleSchematicModal(true)">
+                        <img src="rpm_wiring_schematic.jpg" alt="IIST RPM Electromechanical Wiring & Architecture Schematic" style="width: 100%; height: auto; display: block; object-fit: contain;">
+                        <div style="padding: 6px 10px; font-size: 10.5px; color: var(--text-muted); background: #f8fafc; border-top: 1px solid var(--border-color); display: flex; justify-content: space-between; align-items: center;">
+                            <span style="font-weight: 600; color: var(--accent-navy);">DWG NO: RPM-ELEC-001 (Rev 1.2)</span>
+                            <span style="color: var(--accent-blue); font-weight: 600;">Click to Enlarge Full Schematic</span>
+                        </div>
+                    </div>
                     
                     <div class="schematic-level-card">
                         <div class="schematic-level-title">
@@ -718,7 +727,6 @@
                 <div class="chart-card">
                     <div class="chart-header">
                         <span>Acceleration Vector G(t)</span>
-                        <span class="mono-badge">50 Hz Time Series</span>
                     </div>
                     <div class="chart-body">
                         <canvas id="timeseries-canvas"></canvas>
@@ -729,7 +737,6 @@
                 <div class="chart-card">
                     <div class="chart-header">
                         <span>Dynamic Motor Torque τ(t)</span>
-                        <span class="mono-badge">NEMA 23 (2.8 N·m)</span>
                     </div>
                     <div class="chart-body">
                         <canvas id="torque-canvas"></canvas>
@@ -740,7 +747,6 @@
                 <div class="chart-card">
                     <div class="chart-header">
                         <span>Centrifugal Field Gradient a_c(r)</span>
-                        <span class="mono-badge">r = 0 to 15 cm</span>
                     </div>
                     <div class="chart-body">
                         <canvas id="centrifugal-canvas"></canvas>
@@ -751,7 +757,6 @@
                 <div class="chart-card">
                     <div class="chart-header">
                         <span>Gravity Vector Orbit on S²</span>
-                        <span class="mono-badge">Three.js Celestial S²</span>
                     </div>
                     <div class="chart-body" style="position: relative;">
                         <canvas id="sphere-canvas" style="width: 100%; height: 100%; display: block;"></canvas>
@@ -847,24 +852,19 @@
         <div class="modal-dialog" onclick="event.stopPropagation()">
             <div class="modal-header">
                 <div>
-                    <strong style="color: var(--accent-navy); font-size: 14px;">Academic Formulations & Literature (Overleaf LaTeX Typesetting)</strong>
-                    <div style="font-size: 11px; color: var(--text-muted);">Department of Aerospace Engineering • IIST Batch 2025–2027</div>
+                    <strong style="color: var(--accent-navy); font-size: 14px;">Mathematical Kinematics, Dynamics & Literature Reference Sheet</strong>
+                    <div style="font-size: 11px; color: var(--text-muted);">Department of Aerospace Engineering • Microgravity Simulation Laboratory</div>
                 </div>
                 <button onclick="toggleCitationsModal(false)" style="background:none; border:none; font-size: 18px; cursor:pointer;">&times;</button>
             </div>
             <div class="modal-body">
                 <article class="overleaf-paper" id="latex-article">
-                    <h1 class="paper-title">Random Positioning Machine (RPM) Digital Twin:<br>Kinematic Transformations, Free-Fall Dynamics, and Scaling Laws for Microgravity Manufacturing</h1>
-                    <div class="paper-authors">Department of Aerospace Engineering • Manufacturing Technology Specialization</div>
-                    <div class="paper-inst">Indian Institute of Space Science and Technology (IIST), Valiamala, Thiruvananthapuram, Kerala 695547</div>
+                    <h1 class="paper-title">Random Positioning Machine (RPM): Mathematical Kinematics, Rigid-Body Dynamics, and Acceleration Field Formulations</h1>
+                    <div class="paper-inst">Department of Aerospace Engineering • Indian Institute of Space Science and Technology (IIST), Thiruvananthapuram</div>
 
-                    <div class="paper-abstract">
-                        <strong>Abstract</strong> — This document details the mathematical, mechanical, and transport foundations of the IIST Random Positioning Machine (RPM) Digital Twin v2.0 (DWG No. 01, 02, 03: MTECH2025). While biological microgravity research enforces an organelle sedimentation threshold of $10^{-3} g_0$, space manufacturing experiments (e.g., Wire Arc Additive Manufacturing, melt pool solidification, and crystal growth) operate under fluid capillary regimes governed by the Bond number ($Bo \ll 1$), Grashof number ($Gr < 10^3$), and Marangoni convection. We formulate the exact kinematic transformations, evaluate the total spatial acceleration field $\vec{a}_{\text{total}}(\vec{r}, t)$, and demonstrate that under low rotational velocities ($\omega \le 1.0\text{ RPM}$), the entire $200 \times 200\text{ mm}$ payload envelope—including onboard IMUs and thermal crucibles—maintains residual centrifugal acceleration below $1.1 \times 10^{-4} g_0$, satisfying the physical criteria for microgravity manufacturing.
-                    </div>
-
-                    <h2 class="sec-heading">1. Kinematic Frame Transformations & Time-Averaged Gravity</h2>
+                    <h2 class="sec-heading">1. Kinematic Frame Transformations & Direction Cosine Matrices</h2>
                     <p>
-                        Let $\mathcal{F}_{\text{lab}} = \{\vec{e}_X, \vec{e}_Y, \vec{e}_Z\}$ denote the stationary laboratory frame where the static terrestrial gravitational field is $\vec{g}_0 = -g_0 \vec{e}_Z$, with $g_0 = 9.80665\text{ m/s}^2$. The outer gimbal rotates through angle $\psi$ about the horizontal laboratory shaft ($Y$-axis), and the inner gimbal rotates through angle $\phi$ about its orthogonal gimbal shaft ($Z$-axis). The instantaneous gravity vector projected into the payload frame $\mathcal{F}_{\text{sample}}$ is governed by sequential orthogonal rotation matrices (Yotov et al., 2022):
+                        Let $\mathcal{F}_{\text{lab}} = \{\vec{e}_X, \vec{e}_Y, \vec{e}_Z\}$ denote the stationary laboratory reference frame where static terrestrial gravity is $\vec{g}_0 = -g_0 \vec{e}_Z$ ($g_0 = 9.80665\text{ m/s}^2$). The outer gimbal frame rotates through angle $\psi$ about the horizontal laboratory shaft ($Y$-axis), and the inner gimbal rotates through angle $\phi$ about its orthogonal gimbal shaft ($Z$-axis). The instantaneous gravity unit vector projected into the payload frame $\mathcal{F}_{\text{payload}}$ is governed by sequential orthogonal rotation matrices:
                     </p>
 
                     <div class="latex-display-eq">
@@ -872,21 +872,25 @@
                     </div>
 
                     <p>
-                        The cumulative Time-Averaged Simulated Microgravity ($\text{taSMG}$) over operational epoch $T$ is defined as the $L_2$-norm of the integrated unit vector:
+                        When gimbal axis inclination misalignment tilts ($\theta_{\text{inner}}, \theta_{\text{outer}}$) exist, the effective instantaneous orientation angles become $\phi' = \phi + \theta_{\text{inner}}$ and $\psi' = \psi + \theta_{\text{outer}}$.
+                    </p>
+
+                    <h2 class="sec-heading">2. Cumulative Time-Averaged Simulated Microgravity (taSMG)</h2>
+                    <p>
+                        The cumulative Time-Averaged Simulated Microgravity ($\text{taSMG}$) over an operational epoch $T$ is defined as the Euclidean $L_2$-norm of the integrated orientation vector:
                     </p>
 
                     <div class="latex-display-eq">
-                        $$\text{taSMG} = \left\| \frac{1}{T} \int_{0}^{T} \vec{e}_g(t) \, dt \right\|_2 = \sqrt{\langle g_x \rangle^2 + \langle g_y \rangle^2 + \langle g_z \rangle^2}$$
+                        $$\text{taSMG}(T) = \left\| \frac{1}{T} \int_{0}^{T} \vec{e}_g(t) \, dt \right\|_2 = \sqrt{\langle g_x \rangle^2 + \langle g_y \rangle^2 + \langle g_z \rangle^2}$$
                     </div>
 
-                    <div class="latex-theorem-box">
-                        <div class="thm-title">Theorem 1 (Kim et al., npj Microgravity 2026 — Ergodic Ratio)</div>
-                        Periodic harmonic speed ratios $\gamma = \omega_\psi / \omega_\phi \in \mathbb{Q}$ trap the trajectory vector into closed 1D Lissajous loops on the unit sphere $S^2$, inducing severe polar accumulation. The optimal non-harmonic ratio $\gamma = 1.146$ guarantees uniform ergodic coverage across $S^2$ and minimizes the net residual vector magnitude.
-                    </div>
-
-                    <h2 class="sec-heading">2. Volumetric Spatial Acceleration Field & Radius Thresholds</h2>
                     <p>
-                        At any arbitrary spatial coordinate $\vec{r} \in \mathbb{R}^3$ within the payload chamber, the total instantaneous acceleration experienced by a continuum element incorporates terrestrial gravity, centrifugal bias, and Euler angular acceleration (Wadhwa et al., Scientific Reports 2026, Eq. 5):
+                        To achieve uniform spherical coverage across the unit sphere $S^2$ and avoid closed 1D Lissajous degenerate orbits, non-harmonic velocity ratios ($\gamma = \omega_\psi / \omega_\phi \notin \mathbb{Q}$) or zero-crossing stochastic trajectories are employed, suppressing directional gravity accumulation to $\langle \vec{g} \rangle \to \vec{0}$.
+                    </p>
+
+                    <h2 class="sec-heading">3. Instantaneous Volumetric Spatial Acceleration Field</h2>
+                    <p>
+                        At any spatial position vector $\vec{r} \in \mathbb{R}^3$ relative to the central gimbal pivot, the total instantaneous kinematic acceleration experienced by a continuum element incorporates terrestrial gravity, centrifugal acceleration, and angular acceleration:
                     </p>
 
                     <div class="latex-display-eq">
@@ -894,69 +898,73 @@
                     </div>
 
                     <p>
-                        Where $\vec{\omega}(t) = \omega_\phi \vec{e}_z + \omega_\psi \vec{e}_y$ is the composite angular velocity, and $\vec{\alpha}(t) = d\vec{\omega}/dt$ is the angular acceleration vector limited by motor torque ramping ($\|\vec{\alpha}\| \le 10\text{ rad/s}^2$).
-                    </p>
-
-                    <h2 class="sec-heading">3. Microgravity Manufacturing vs. Biological Scaling Laws</h2>
-                    <p>
-                        In cellular biology, microgravity is defined by the sedimentation threshold of intracellular organelles (statoliths, $\Delta\rho \approx 500\text{ kg/m}^3$), which enforces a strict condition $a_{\text{centrifugal}} < 10^{-3} g_0$. Under $\omega = 2.0\text{ RPM}$, this restricts the biological specimen radius to:
+                        The radial centrifugal acceleration magnitude depends directly on composite rotational velocity and radius:
                     </p>
 
                     <div class="latex-display-eq">
-                        $$r_{\text{safe}}^{\text{(bio)}} = \frac{10^{-3} g_0}{\|\vec{\omega}\|^2} \approx 2.23\text{ cm}$$
+                        $$a_c(r) = \|\vec{\omega}\|^2 r = \left( \omega_\psi^2 + \omega_\phi^2 \right) r$$
                     </div>
 
                     <p>
-                        <strong>The Manufacturing Paradigm:</strong> For manufacturing experiments (Wire Arc Additive Manufacturing, welding, directional solidification, casting, and sintering), the experimental apparatus comprises a molten melt pool, thermal crucible, heating coils, power leads, and onboard IMUs. A $2\text{ cm}$ radius is physically insufficient to house even an IMU. However, in manufacturing, gravity defects are driven by <em>melt pool hydrostatic sag</em> and <em>buoyancy-driven convective turbulence</em>, governed by dimensionless transport numbers:
-                    </p>
-
-                    <div class="latex-theorem-box">
-                        <div class="thm-title">Definition 1 (Bond Number — Capillary Domination in Manufacturing)</div>
-                        The ratio of gravitational body forces to surface tension capillary forces across a molten metal pool of characteristic radius $L_{\text{melt}}$ (typically $3\text{ to }6\text{ mm}$) with surface tension $\sigma \approx 1.2\text{ to }1.8\text{ N/m}$ is:
-                        $$\text{Bo} = \frac{\rho_{\text{metal}} \cdot g_{\text{eff}} \cdot L_{\text{melt}}^2}{\sigma} \ll 1$$
-                        When $\text{Bo} \ll 1$, surface tension completely dominates hydrostatic pressure. The molten bead maintains its shape without dripping or sag, exhibiting true zero-gravity surface morphology even under residual accelerations of $0.05 g_0$.
-                    </div>
-
-                    <div class="latex-theorem-box">
-                        <div class="thm-title">Definition 2 (Grashof & Rayleigh Numbers — Thermal Buoyancy Suppression)</div>
-                        Buoyancy-induced natural convection in the molten pool is quantified by:
-                        $$\text{Gr} = \frac{g_{\text{eff}} \cdot \beta \cdot \Delta T \cdot L^3}{\nu^2}, \qquad \text{Ra} = \text{Gr} \cdot \text{Pr} = \frac{g_{\text{eff}} \cdot \beta \cdot \Delta T \cdot L^3}{\nu \cdot \alpha_{\text{thermal}}}$$
-                        In terrestrial conditions, $\text{Ra} > 10^5$ induces turbulent convective macro-segregation. By attenuating effective directional gravity via the RPM, $\text{Ra} < 10^3$, completely suppressing convective plumes and yielding purely diffusion-controlled dendritic solidification.
-                    </div>
-
-                    <h2 class="sec-heading">4. Payload Envelope Feasibility for the 200 mm CAD Assembly</h2>
-                    <p>
-                        The IIST manufacturing payload holder (DWG 02, Part 3) is a $200 \times 200 \times 200\text{ mm}$ enclosure ($r = 10.0\text{ cm}$). When operational speed is tuned to the manufacturing regime ($\omega = 0.5\text{ to }1.0\text{ RPM}$):
+                        For microgravity compliance ($a_c \le 10^{-3} g_0$), the critical safe radius threshold is defined by:
                     </p>
 
                     <div class="latex-display-eq">
-                        $$a_c(r=10\text{ cm}, 0.5\text{ RPM}) = (0.0524\text{ rad/s})^2 \cdot (0.10\text{ m}) = 2.74 \times 10^{-4}\text{ m/s}^2 \approx 2.8 \times 10^{-5} g_0$$
+                        $$r_{\text{crit}} = \frac{10^{-3} g_0}{\|\vec{\omega}\|^2}$$
                     </div>
 
+                    <h2 class="sec-heading">4. Rigid-Body Mass Moments of Inertia & Material Density Scaling</h2>
                     <p>
-                        At $\omega = 0.5\text{ RPM}$, the residual centrifugal acceleration at the outer edge of the $200\text{ mm}$ payload is <strong>two orders of magnitude below $10^{-3} g_0$</strong>. This confirms that an entire manufacturing sub-assembly with crucible, feed mechanism, and IMU operates well within the microgravity manufacturing boundary.
-                    </p>
-
-                    <h2 class="sec-heading">5. 1D Navier-Stokes Cylindrical Momentum Diffusion</h2>
-                    <p>
-                        For liquid phases and cooling fluids, the unsteady momentum diffusion induced by gimbal reorientation is modeled at 50 Hz via finite difference discretization (Hasenstein & van Loon, 2015):
+                        The mass moment of inertia tensor $\mathbf{I}$ of each rotating gimbal is evaluated directly from volumetric mass integration:
                     </p>
 
                     <div class="latex-display-eq">
-                        $$\frac{\partial u_\theta}{\partial t} = \nu \left( \frac{\partial^2 u_\theta}{\partial r^2} + \frac{1}{r} \frac{\partial u_\theta}{\partial r} - \frac{u_\theta}{r^2} \right)$$
+                        $$I_{ij} = \int_{V} \rho(\mathbf{x}) \left( \|\mathbf{x}\|^2 \delta_{ij} - x_i x_j \right) dV$$
                     </div>
+
+                    <p>
+                        For square hollow structural tubes (outer frame $500 \times 500 \times 50.8\text{ mm}$, inner frame $350 \times 350 \times 50.8\text{ mm}$ with wall thickness $t = 3.2\text{ mm}$), the structural frame mass and principal inertia scale linearly with material density $\rho$:
+                    </p>
 
                     <div class="latex-display-eq">
-                        $$\tau_w = \mu \left| \frac{\partial u_\theta}{\partial r} - \frac{u_\theta}{r} \right|_{r=R_{\text{chamber}}}$$
+                        $$M_{\text{frame}} = \rho \cdot \left[ w^2 - (w - 2t)^2 \right] \cdot 4(L - w), \qquad I_{yy} = I_{\text{inner}} + I_{\text{payload}}, \quad I_{xx} = I_{\text{outer}} + I_{yy}$$
                     </div>
 
-                    <h2 class="sec-heading">6. References</h2>
+                    <p>
+                        Selecting Al6061-T6 ($\rho = 2700\text{ kg/m}^3$) yields $I_{xx} \approx 0.485\text{ kg}\cdot\text{m}^2$ and $I_{yy} \approx 0.172\text{ kg}\cdot\text{m}^2$, whereas Structural Steel IS2062 ($\rho = 7850\text{ kg/m}^3$) scales inertia by a factor of $2.91\times$.
+                    </p>
+
+                    <h2 class="sec-heading">5. Dynamic Motor Shaft Torque & Gyroscopic Cross-Coupling</h2>
+                    <p>
+                        The instantaneous dynamic torque required from each drive actuator is a non-linear function of angular velocity $\omega$, angular acceleration $\alpha$, gimbal angle, and material inertia:
+                    </p>
+
+                    <div class="latex-display-eq">
+                        $$\tau_{\text{motor}}(\omega, \alpha) = I \alpha + \tau_{\text{gyro}}(\omega) + M_{\text{payload}} g \Delta r_{\text{cg}} \sin\theta + \tau_{\text{drag}}(\omega)$$
+                    </div>
+
+                    <p>
+                        Where gyroscopic precession cross-coupling between orthogonal gimbal rotations contributes:
+                    </p>
+
+                    <div class="latex-display-eq">
+                        $$\tau_{\text{gyro}} = I_{yy} \cdot \left| \omega_\psi \omega_\phi \sin\phi \right|$$
+                    </div>
+
+                    <p>
+                        And speed-dependent drag combines Coulomb dry friction, bearing lubricant shear, and aerodynamic windage:
+                    </p>
+
+                    <div class="latex-display-eq">
+                        $$\tau_{\text{drag}}(\omega) = \tau_{\text{Coulomb}} + c_{\text{viscous}} |\omega| + c_{\text{aero}} \omega^2$$
+                    </div>
+
+                    <h2 class="sec-heading">6. Peer-Reviewed Literature References</h2>
                     <ol class="latex-ref-list">
-                        <li><strong>Kim, H. et al. (2026):</strong> An Experimental and Theoretical Approach to Optimize a Three-Dimensional Clinostat. <em>npj Microgravity</em>, 12:45. Nature Publishing Group.</li>
-                        <li><strong>Wadhwa, S. et al. (2026):</strong> Spatial acceleration gradient and safe radius thresholds in random positioning machines. <em>Scientific Reports</em>, 16:1042.</li>
-                        <li><strong>Hasenstein, K. H. & van Loon, J. J. W. A. (2015):</strong> Clinostats and Other Rotating Systems—Design, Function, and Limitations. <em>Generation and Applications of Extra-Terrestrial Environments on Earth</em>, Chapter 14, pp. 147–160. River Publishers.</li>
-                        <li><strong>Yotov, V. et al. (2022):</strong> Mathematical kinematics of dual-axis random positioning machines. <em>Aerospace Science and Technology</em>, 128:107802.</li>
-                        <li><strong>Pica, A. et al. (2026):</strong> Zero-crossing stochastic trajectory analysis for microgravity simulation. <em>PLOS ONE</em>, 21(3):e0351320.</li>
+                        <li><strong>Borst, A. G., & van Loon, J. J. W. A. (2009):</strong> Technology and developments for the Random Positioning Machine, RPM. <em>Microgravity Science and Technology</em>, 21(4), 287–292.</li>
+                        <li><strong>Mesland, D. A. M., Anton, A. H., & Willemsen, H. P. (1996):</strong> The Random Positioning Machine: A tool for microgravity research. <em>ESA Special Publication</em>, SP-390, 143–148.</li>
+                        <li><strong>Wuest, S. L., Richard, S., Kopp, S., Grimm, D., & Egli, M. (2015):</strong> Simulated microgravity: critical review on the use of 2D/3D clinostats, random positioning machines and ground-based facilities. <em>Life Sciences in Space Research</em>, 5, 45–54.</li>
+                        <li><strong>Yotov, V., et al. (2022):</strong> Kinematic analysis and trajectory optimization of dual-axis random positioning machines. <em>Aerospace Science and Technology</em>, 128, 107802.</li>
                     </ol>
                 </article>
             </div>
@@ -977,6 +985,19 @@
             </div>
             <div class="modal-body" style="padding: 20px;">
                 
+                <!-- Complete High-Resolution Engineering Wiring Schematic -->
+                <div style="background: #ffffff; border: 1.5px solid var(--border-color); border-radius: 6px; padding: 10px; margin-bottom: 20px; box-shadow: 0 2px 6px rgba(0,0,0,0.06);">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; padding-bottom: 6px; border-bottom: 1px solid var(--border-color);">
+                        <span style="font-size: 12px; font-weight: 700; color: var(--accent-navy);">ELECTROMECHANICAL WIRING DIAGRAM & EXPLODED HARDWARE ARCHITECTURE (DWG NO: RPM-ELEC-001)</span>
+                        <a href="rpm_wiring_schematic.jpg" target="_blank" class="btn btn-secondary" style="font-size: 10.5px; padding: 3px 10px; text-decoration: none;">
+                            Open Full Resolution (New Tab)
+                        </a>
+                    </div>
+                    <div style="border: 1px solid #e2e8f0; border-radius: 4px; overflow: hidden; background: #ffffff;">
+                        <img src="rpm_wiring_schematic.jpg" alt="IIST Dual-Axis RPM Wiring & Architecture Schematic" style="width: 100%; height: auto; display: block;">
+                    </div>
+                </div>
+
                 <!-- Overview Banner -->
                 <div style="background: #f8fafc; border: 1px solid var(--border-color); border-radius: 6px; padding: 12px; margin-bottom: 16px;">
                     <div style="font-size: 12px; font-weight: 700; color: var(--accent-navy); margin-bottom: 4px;">Electromechanical Integration Overview</div>

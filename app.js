@@ -85,13 +85,9 @@ class RPMScientificApp {
         this.inst_gz = 1.0;
         this.tasmg = 1.0;
 
-        // Sample Probe Points (from v1)
-        this.samplePoints = [
-            { id: 1, x: 0.0, y: 0.0, z: 0.0, sumG: 0.0, samples: 0, tasmg: 1.0, ac: 0.0 },
-            { id: 2, x: 2.0, y: 1.0, z: 1.0, sumG: 0.0, samples: 0, tasmg: 1.0, ac: 0.0 },
-            { id: 3, x: 4.0, y: 0.0, z: 0.0, sumG: 0.0, samples: 0, tasmg: 1.0, ac: 0.0 }
-        ];
-        this.nextPointId = 4;
+        // Sample Probe Points (dynamic user-added markers)
+        this.samplePoints = [];
+        this.nextPointId = 1;
 
         // 1D Navier-Stokes FDM
         this.fluid_N = 25;
@@ -878,10 +874,21 @@ class RPMScientificApp {
         this.prev_omega_phi_rad_s = omega_phi_rad_s;
         this.prev_omega_psi_rad_s = omega_psi_rad_s;
 
-        // Dynamic motor torques (I·α + M·g·Δr·sinθ + friction)
+        // Dynamic motor torques with speed-dependent drag and gyroscopic cross-coupling:
+        // 1. Angular acceleration inertial torque: I * alpha
+        // 2. Gyroscopic cross-coupling torque between rotating gimbals: I_yy * |omega_psi * omega_phi * sin(phi)|
+        // 3. Speed-dependent drag: Coulomb friction (0.04 N·m) + viscous bearing drag (c_visc * |omega|) + aerodynamic windage (c_aero * omega^2)
+        // 4. Static payload unbalance torque: M * g * delta_r * sin(theta)
         const moi = this.currentMOI || this.calculateMechanicalMOI();
-        const tau_in = Math.abs(moi.I_yy * alpha_phi) + Math.abs(moi.tau_unbalance * Math.sin(phi_rad)) + moi.tau_friction;
-        const tau_out = Math.abs(moi.I_xx * alpha_psi) + Math.abs(moi.tau_unbalance * Math.sin(psi_rad)) + moi.tau_friction;
+        const c_visc = 0.035;   // N·s/rad (lubricant shear + slip-ring gold brush friction)
+        const c_aero = 0.003;   // N·s²/rad² (aerodynamic drag of rotating frames)
+        
+        const tau_drag_inner = 0.04 + c_visc * Math.abs(omega_phi_rad_s) + c_aero * (omega_phi_rad_s ** 2);
+        const tau_drag_outer = 0.04 + c_visc * Math.abs(omega_psi_rad_s) + c_aero * (omega_psi_rad_s ** 2);
+        const tau_gyro = moi.I_yy * Math.abs(omega_psi_rad_s * omega_phi_rad_s * Math.sin(phi_rad));
+
+        const tau_in = Math.abs(moi.I_yy * alpha_phi) + tau_gyro + Math.abs(moi.tau_unbalance * Math.sin(phi_rad)) + tau_drag_inner;
+        const tau_out = Math.abs(moi.I_xx * alpha_psi) + tau_gyro + Math.abs(moi.tau_unbalance * Math.sin(psi_rad)) + tau_drag_outer;
         this.inst_torque_inner = tau_in;
         this.inst_torque_outer = tau_out;
         if (tau_in > this.peak_torque_observed) this.peak_torque_observed = tau_in;
@@ -1437,13 +1444,18 @@ function resumeFromModal() {
 
 // Sample Enclosure Box
 function updateEnclosureBox() {
-    const x = parseFloat(document.getElementById('enclosure-x').value || 20);
-    const y = parseFloat(document.getElementById('enclosure-y').value || 20);
-    const z = parseFloat(document.getElementById('enclosure-z').value || 20);
-    const show = document.getElementById('show-enclosure').value === 'yes';
+    const x = parseFloat(document.getElementById('enclosure-x')?.value || 20);
+    const y = parseFloat(document.getElementById('enclosure-y')?.value || 20);
+    const z = parseFloat(document.getElementById('enclosure-z')?.value || 20);
+    const show = document.getElementById('show-enclosure')?.value === 'yes';
 
-    if (window.app.cadAssembly) {
+    if (window.app && window.app.cadAssembly) {
         window.app.cadAssembly.updateEnclosureBox(x, y, z, show);
+        if (show) {
+            window.app.showToast(`Enclosure wireframe applied: ${x} × ${y} × ${z} cm`, 'info');
+        } else {
+            window.app.showToast('Enclosure wireframe hidden', 'info');
+        }
     }
 }
 
